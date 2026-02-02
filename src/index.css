@@ -10,6 +10,52 @@
   --background-end-rgb: 255, 255, 255;
 }
 
+/* Reset and base styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Global layout fixes */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Responsive media elements */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Flex and Grid fixes */
+.flex-container {
+  min-width: 0;
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 1023px) {
+  html,
+  body {
+    position: relative;
+    width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+/* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
@@ -28,6 +74,9 @@ body {
     rgb(var(--background-start-rgb));
   font-family: 'Inter', sans-serif;
   margin: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   min-width: 100vw;
 }

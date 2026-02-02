@@ -17,13 +17,15 @@ function App() {
     <Router>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <AuthProvider>
-          <div className="min-h-screen bg-zinc-950 text-white">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              {/* Add more routes here */}
-            </Routes>
+          <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-zinc-950 text-white flex flex-col">
+            <div className="flex-1 flex flex-col">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                {/* Add more routes here */}
+              </Routes>
+            </div>
             <Toaster />
           </div>
         </AuthProvider>
