@@ -21,7 +21,7 @@ const Login = () => {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+      // AuthContext redirects to '/' on success
     } catch (err) {
       setError('Invalid email or password');
       console.error('Login error:', err);

@@ -25,18 +25,23 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Replace with actual API call
+      // Backend uses OAuth2PasswordRequestForm: form-urlencoded with username (email) and password
+      const body = new URLSearchParams({ username: email, password });
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
       });
-      
-      if (!response.ok) throw new Error('Login failed');
-      
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || (Array.isArray(err.detail) ? err.detail[0]?.msg : 'Login failed'));
+      }
+
       const data = await response.json();
-      authLogin(data.user, data.token);
-      navigate('/dashboard');
+      // Backend returns access_token and user (not token)
+      authLogin(data.user, data.access_token);
+      navigate('/');
     } catch (error) {
       console.error('Login error:', error);
       throw error;

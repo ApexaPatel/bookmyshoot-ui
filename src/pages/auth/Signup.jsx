@@ -37,19 +37,30 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      // Replace with actual API call
+      // Backend expects: full_name, email, phone, password, role (UserCreate)
+      const payload = {
+        full_name: formData.name,
+        email: formData.email,
+        phone: formData.phone.replace(/\s/g, ''), // Backend expects E.164-style (e.g. +1234567890 or 1234567890)
+        password: formData.password,
+        role: formData.role,
+      };
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Signup failed');
+        const errorData = await response.json().catch(() => ({}));
+        const msg = typeof errorData.detail === 'string'
+          ? errorData.detail
+          : Array.isArray(errorData.detail)
+            ? errorData.detail.map((e) => e.msg || e.loc?.join('.')).join(', ')
+            : 'Signup failed';
+        throw new Error(msg);
       }
 
-      // Redirect to login with success message
       navigate('/login?signup=success');
     } catch (err) {
       setError(err.message || 'An error occurred during signup');
