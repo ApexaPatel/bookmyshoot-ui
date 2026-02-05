@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -71,8 +73,10 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-900 to-zinc-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <Navbar />
+      <main className="container mx-auto px-6 md:px-10 py-12">
+        <div className="max-w-md w-full mx-auto">
         <Card className="bg-zinc-900/80 backdrop-blur-sm border border-white/10 shadow-xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-white text-center">
@@ -185,7 +189,9 @@ const Signup = () => {
             </div>
           </CardFooter>
         </Card>
-      </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 };

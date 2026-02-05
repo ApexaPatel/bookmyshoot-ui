@@ -4,11 +4,13 @@ import { ThemeProvider } from '@/components/theme-provider';
 import Home from '@/pages/home/Home';
 import Login from '@/pages/auth/Login';
 import Signup from '@/pages/auth/Signup';
+import Photographers from '@/pages/photographers/Photographers';
+import Profile from '@/pages/profile/Profile';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { AuthProvider } from '@/context/AuthContext';
 import { useEffect } from 'react';
 
 function App() {
-  // Set theme to dark by default
   useEffect(() => {
     document.documentElement.classList.add('dark');
   }, []);
@@ -21,9 +23,17 @@ function App() {
             <div className="flex-1 flex flex-col">
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/photographers" element={<Photographers />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
-                {/* Add more routes here */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </div>
             <Toaster />

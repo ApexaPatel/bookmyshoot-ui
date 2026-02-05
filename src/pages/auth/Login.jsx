@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -12,7 +14,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +22,6 @@ const Login = () => {
 
     try {
       await login(email, password);
-      // AuthContext redirects to '/' on success
     } catch (err) {
       setError('Invalid email or password');
       console.error('Login error:', err);
@@ -31,8 +31,10 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-900 to-zinc-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <Navbar />
+      <main className="container mx-auto px-6 md:px-10 py-12">
+        <div className="max-w-md w-full mx-auto">
         <Card className="bg-zinc-900/80 backdrop-blur-sm border border-white/10 shadow-xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-white text-center">
@@ -99,7 +101,9 @@ const Login = () => {
             </div>
           </CardFooter>
         </Card>
-      </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 };
