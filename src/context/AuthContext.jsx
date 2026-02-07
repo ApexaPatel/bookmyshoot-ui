@@ -17,7 +17,7 @@ function normalizeUser(apiUser) {
 }
 
 export const AuthProvider = ({ children }) => {
-  const { user, token, isAuthenticated, login: authLogin, logout: authLogout } = useAuthStore();
+  const { user, token, isAuthenticated, login: authLogin, logout: authLogout, updateUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -70,12 +70,31 @@ export const AuthProvider = ({ children }) => {
     navigate('/');
   };
 
+  const updateProfileImage = async (profilePictureUrl) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch('/api/auth/profile-image', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ profile_picture: profilePictureUrl }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update profile image');
+    }
+    const data = await res.json();
+    updateUser({ avatar: data.profile_picture ?? profilePictureUrl });
+  };
+
   const value = {
     user,
     isAuthenticated,
     loading,
     login,
     logout,
+    updateProfileImage,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

@@ -9,6 +9,9 @@ export const useAuthStore = create(
       isAuthenticated: false,
       login: (user, token) => set({ user, token, isAuthenticated: true }),
       logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      updateUser: (payload) => set((state) => ({
+        user: state.user ? { ...state.user, ...payload } : null,
+      })),
       initializeAuth: () => {
         const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}');
         if (stored?.state?.token) {
