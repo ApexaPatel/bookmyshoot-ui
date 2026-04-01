@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Building2, Camera } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,19 +58,20 @@ const Photographers = () => {
         {!loading && !error && photographers.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {photographers.map((p) => (
-              <Card key={p.id} className="bg-zinc-900/80 border border-zinc-800 overflow-hidden">
-                {/* Profile image or placeholder */}
+              <Link key={p.id} to={`/photographer/${p.id}`} className="block">
+              <Card className="bg-zinc-900/80 border border-zinc-800 overflow-hidden transition hover:border-indigo-500/50">
+                {/* Cover image (banner) or default placeholder */}
                 <div className="relative aspect-[4/3] w-full bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center overflow-hidden">
-                  {p.profile_picture ? (
+                  {p.cover_image ? (
                     <img
-                      src={p.profile_picture}
+                      src={p.cover_image}
                       alt=""
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <Camera className="h-12 w-12 text-zinc-500" aria-hidden />
                   )}
-                  <span className="sr-only">{p.profile_picture ? 'Profile photo' : 'Profile photo placeholder'}</span>
+                  <span className="sr-only">{p.cover_image ? 'Cover image' : 'Cover placeholder'}</span>
                 </div>
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3">
@@ -105,6 +107,7 @@ const Photographers = () => {
                   </div>
                 </CardContent>
               </Card>
+              </Link>
             ))}
           </div>
         )}

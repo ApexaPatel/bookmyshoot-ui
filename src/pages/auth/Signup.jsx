@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { uploadProfileImage, isFirebaseConfigured } from '@/lib/uploadProfileImage';
+import { uploadProfileImage } from '@/lib/uploadProfileImage';
 
 const Signup = () => {
   const [searchParams] = useSearchParams();
@@ -30,7 +30,7 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const firebaseEnabled = isFirebaseConfigured();
+  const uploadsEnabled = true;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -160,7 +160,7 @@ const Signup = () => {
                   className="bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
-              {firebaseEnabled && (
+              {uploadsEnabled && (
                 <div className="space-y-2">
                   <Label className="text-zinc-300">Profile photo (optional)</Label>
                   <div className="flex items-center gap-4">

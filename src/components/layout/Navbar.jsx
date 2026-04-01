@@ -83,6 +83,9 @@ const Navbar = () => {
           <Link to="/photographers" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Photographers
           </Link>
+          <Link to="/organizations" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
+            Organizations
+          </Link>
           <Link to="/pricing" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Pricing
           </Link>
@@ -126,6 +129,13 @@ const Navbar = () => {
                     Profile
                   </Link>
                 </DropdownMenuItem>
+                {user?.role === 'photographer' ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/portfolio" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Portfolio
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   className="cursor-pointer focus:bg-zinc-800 focus:text-white text-red-400 focus:text-red-400"
                   onSelect={(e) => {

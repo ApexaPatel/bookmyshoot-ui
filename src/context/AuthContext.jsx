@@ -4,14 +4,16 @@ import { useAuthStore } from '../store/authStore';
 
 const AuthContext = createContext({});
 
-/** Normalize backend user to { id, name, email, avatar, role } for consistent UI use */
+/** Normalize backend user to { id, name, email, bio, avatar, cover, role } for consistent UI use */
 function normalizeUser(apiUser) {
   if (!apiUser) return null;
   return {
-    id: apiUser.id,
+    id: apiUser.id ?? apiUser._id ?? null,
     name: apiUser.full_name ?? apiUser.name,
     email: apiUser.email,
+    bio: apiUser.bio ?? '',
     avatar: apiUser.profile_picture ?? null,
+    cover: apiUser.cover_image ?? null,
     role: apiUser.role ?? 'customer',
   };
 }
@@ -88,6 +90,44 @@ export const AuthProvider = ({ children }) => {
     updateUser({ avatar: data.profile_picture ?? profilePictureUrl });
   };
 
+  const updateCoverImage = async (coverImageUrl) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch('/api/users/cover-image', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ cover_image: coverImageUrl }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail ?? 'Failed to update cover image';
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg ?? detail : String(detail);
+      throw new Error(msg);
+    }
+    updateUser({ cover: data.cover_image ?? coverImageUrl });
+  };
+
+  const updateBio = async (bio) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch('/api/users/bio', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ bio }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail ?? 'Failed to update bio';
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg ?? detail : String(detail);
+      throw new Error(msg);
+    }
+    updateUser({ bio: data.bio ?? bio });
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -95,6 +135,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateProfileImage,
+    updateCoverImage,
+    updateBio,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

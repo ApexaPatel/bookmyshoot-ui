@@ -1,27 +1,34 @@
-import { getFirebaseStorage, isFirebaseConfigured } from './firebase';
-
-export { isFirebaseConfigured };
-
-const PROFILE_IMAGES_PATH = 'profile-images';
-
-/**
- * Upload a profile image file to Firebase Storage (CDN SDK) and return the public download URL.
- * Path: profile-images/{folder}/{timestamp}.jpg
- * @param {File} file - Image file (e.g. from input type="file")
- * @param {string} folder - Subfolder: "signup" for signup flow, or userId for profile update
- * @returns {Promise<string>} Download URL
- */
-export async function uploadProfileImage(file, folder = 'signup') {
-  if (!isFirebaseConfigured()) {
-    throw new Error('Firebase Storage is not configured. Add VITE_FIREBASE_* env variables.');
+async function uploadImage(file, kind) {
+  if (!file) {
+    throw new Error('No file selected');
   }
-  const storage = getFirebaseStorage();
-  if (!storage) throw new Error('Firebase Storage failed to initialize. Ensure Firebase scripts are loaded in index.html.');
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z]/g, '') || 'jpg';
-  const filename = `${Date.now()}.${ext}`;
-  const path = `${PROFILE_IMAGES_PATH}/${folder}/${filename}`;
-  const storageRef = storage.ref(path);
-  await storageRef.put(file, { contentType: file.type || 'image/jpeg' });
-  const url = await storageRef.getDownloadURL();
-  return url;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('kind', kind);
+
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = data.detail ?? 'Image upload failed';
+    throw new Error(typeof detail === 'string' ? detail : 'Image upload failed');
+  }
+
+  return data.secure_url;
+}
+
+export async function uploadProfileImage(file, folder = 'profile') {
+  return uploadImage(file, folder === 'signup' ? 'signup-profile' : 'profile');
+}
+
+export async function uploadCoverImage(file) {
+  return uploadImage(file, 'cover');
+}
+
+export async function uploadPortfolioImage(file) {
+  return uploadImage(file, 'portfolio');
 }
