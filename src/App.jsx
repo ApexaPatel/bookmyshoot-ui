@@ -10,6 +10,8 @@ import Profile from '@/pages/profile/Profile';
 import PortfolioList from '@/pages/portfolio/PortfolioList';
 import PortfolioFormPage from '@/pages/portfolio/PortfolioFormPage';
 import Billing from '@/pages/billing/Billing';
+import AdminSubscriptions from '@/pages/admin/AdminSubscriptions';
+import AdminRoute from '@/components/AdminRoute';
 import OrganizationsList from '@/pages/organizations/OrganizationsList';
 import OrganizationDetails from '@/pages/organizations/OrganizationDetails';
 import PhotographerDetails from '@/pages/photographer/PhotographerDetails';
@@ -58,6 +60,14 @@ function App() {
                     <ProtectedRoute>
                       <Billing />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/subscriptions"
+                  element={
+                    <AdminRoute>
+                      <AdminSubscriptions />
+                    </AdminRoute>
                   }
                 />
                 <Route

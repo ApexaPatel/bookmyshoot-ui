@@ -6,11 +6,17 @@ import { PHOTOGRAPHER_PLAN_RULES } from '@/lib/photographerPlans';
 
 const planOrder = ['free', 'pro', 'premium'];
 
+const rank = { free: 0, pro: 1, premium: 2 };
+
 export default function PricingPlansSection({
   currentPlanCode,
   showCurrentPlan = false,
   compact = false,
+  onUpgrade,
 }) {
+  const current = (currentPlanCode || 'free').toLowerCase();
+  const canUpgradeTo = (code) => rank[code] > rank[current];
+
   return (
     <section className="grid gap-6 lg:grid-cols-3">
       {planOrder.map((planCode) => {
@@ -69,10 +75,14 @@ export default function PricingPlansSection({
                 </div>
               </div>
 
-              {compact ? null : plan.priceInr > 0 ? (
-                <Button className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Upgrade to {plan.name}
+              {compact ? null : plan.priceInr > 0 && onUpgrade && canUpgradeTo(plan.code) ? (
+                <Button
+                  type="button"
+                  className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
+                  onClick={() => onUpgrade(plan.code)}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" aria-hidden />
+                  {`Upgrade to ${plan.name}`}
                 </Button>
               ) : null}
             </CardContent>

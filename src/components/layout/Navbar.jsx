@@ -140,6 +140,13 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
+                {user?.role === 'super_admin' ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/subscriptions" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Admin — Subscriptions
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   className="cursor-pointer focus:bg-zinc-800 focus:text-white text-red-400 focus:text-red-400"
                   onSelect={(e) => {

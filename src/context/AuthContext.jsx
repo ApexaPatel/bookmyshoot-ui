@@ -22,7 +22,7 @@ function normalizeUser(apiUser) {
 }
 
 export const AuthProvider = ({ children }) => {
-  const { user, token, isAuthenticated, login: authLogin, logout: authLogout, updateUser } = useAuthStore();
+  const { user, token, isAuthenticated, login: authLogin, logout: authLogout, updateUser, setUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -112,6 +112,17 @@ export const AuthProvider = ({ children }) => {
     updateUser({ cover: data.cover_image ?? coverImageUrl });
   };
 
+  const refreshUser = async () => {
+    const t = useAuthStore.getState().token;
+    if (!t) return;
+    const res = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    if (!res.ok) return;
+    const me = await res.json();
+    setUser(normalizeUser(me));
+  };
+
   const updateBio = async (bio) => {
     if (!token) throw new Error('Not authenticated');
     const res = await fetch('/api/users/bio', {
@@ -133,10 +144,12 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     isAuthenticated,
     loading,
     login,
     logout,
+    refreshUser,
     updateProfileImage,
     updateCoverImage,
     updateBio,

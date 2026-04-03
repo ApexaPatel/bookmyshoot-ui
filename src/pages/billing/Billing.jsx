@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { IndianRupee } from 'lucide-react';
 
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import ProfileSidebar from '@/components/profile/ProfileSidebar';
 import PricingPlansSection from '@/components/billing/PricingPlansSection';
+import DemoCheckoutModal from '@/components/billing/DemoCheckoutModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -37,24 +38,20 @@ function formatCycleDate(value) {
 }
 
 export default function Billing() {
-  const { user } = useAuth();
+  const { user, refreshUser, token } = useAuth();
+  const navigate = useNavigate();
   const [planInfo, setPlanInfo] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoPlan, setDemoPlan] = useState('pro');
 
-  useEffect(() => {
-    if (user?.role !== 'photographer') {
-      setLoading(false);
-      return;
-    }
-
+  const reloadPortfolioPlan = useCallback(() => {
     const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}');
     const token = stored?.state?.token;
-
-    fetch('/api/portfolio', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    if (!token) return Promise.resolve();
+    return fetch('/api/portfolio', {
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -64,9 +61,28 @@ export default function Billing() {
         return data;
       })
       .then((data) => setPlanInfo(data?.plan || null))
-      .catch((fetchError) => setError(fetchError.message || 'Failed to load billing details'))
-      .finally(() => setLoading(false));
-  }, [user?.role]);
+      .catch((fetchError) => setError(fetchError.message || 'Failed to load billing details'));
+  }, []);
+
+  const openDemoCheckout = (planCode) => {
+    setDemoPlan(planCode);
+    setDemoOpen(true);
+  };
+
+  useEffect(() => {
+    if (user?.role !== 'photographer') {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    reloadPortfolioPlan().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role, reloadPortfolioPlan]);
 
   const fallbackPlan = getPhotographerPlanRules(user?.photographerPlan);
   const effectivePlan = useMemo(() => {
@@ -108,7 +124,7 @@ export default function Billing() {
     if (end) {
       return `Billing cycle ends on ${end}.`;
     }
-    return 'Your paid plan is active. Billing cycle dates will appear here once your subscription is linked.';
+    return 'Your paid plan is active. Cycle end is set from your last demo upgrade.';
   }, [effectivePlan.code, effectivePlan.cycle_ends_at]);
 
   if (user?.role !== 'photographer') {
@@ -158,7 +174,8 @@ export default function Billing() {
               <CardHeader>
                 <CardTitle className="text-3xl text-white">Billing</CardTitle>
                 <p className="text-sm leading-6 text-zinc-400">
-                  Manage your subscription and track your usage for this billing cycle.
+                  Manage your subscription and track your usage for this billing cycle. Upgrades use a demo checkout
+                  only—no real charges.
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -224,12 +241,29 @@ export default function Billing() {
                   Compare limits and pricing. Choose an upgrade when you need more photoshoots or larger galleries.
                 </p>
               </div>
-              <PricingPlansSection currentPlanCode={effectivePlan.code} showCurrentPlan />
+              <PricingPlansSection
+                currentPlanCode={effectivePlan.code}
+                showCurrentPlan
+                onUpgrade={openDemoCheckout}
+              />
             </div>
           </div>
         </div>
       </main>
       <Footer />
+      <DemoCheckoutModal
+        open={demoOpen}
+        onOpenChange={setDemoOpen}
+        planCode={demoPlan}
+        userName={user?.name}
+        userEmail={user?.email}
+        token={token}
+        onPaidSuccess={async () => {
+          await refreshUser();
+          reloadPortfolioPlan();
+          navigate('/portfolio');
+        }}
+      />
     </div>
   );
 }
