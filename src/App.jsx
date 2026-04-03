@@ -2,12 +2,14 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import Home from '@/pages/home/Home';
+import Pricing from '@/pages/home/Pricing';
 import Login from '@/pages/auth/Login';
 import Signup from '@/pages/auth/Signup';
 import Photographers from '@/pages/photographers/Photographers';
 import Profile from '@/pages/profile/Profile';
 import PortfolioList from '@/pages/portfolio/PortfolioList';
 import PortfolioFormPage from '@/pages/portfolio/PortfolioFormPage';
+import Billing from '@/pages/billing/Billing';
 import OrganizationsList from '@/pages/organizations/OrganizationsList';
 import OrganizationDetails from '@/pages/organizations/OrganizationDetails';
 import PhotographerDetails from '@/pages/photographer/PhotographerDetails';
@@ -28,6 +30,14 @@ function App() {
             <div className="flex-1 flex flex-col">
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route
+                  path="/pricing"
+                  element={
+                    <ProtectedRoute>
+                      <Pricing />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/photographers" element={<Photographers />} />
                 <Route path="/organizations" element={<OrganizationsList />} />
                 <Route path="/organizations/:id" element={<OrganizationDetails />} />
@@ -39,6 +49,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/billing"
+                  element={
+                    <ProtectedRoute>
+                      <Billing />
                     </ProtectedRoute>
                   }
                 />

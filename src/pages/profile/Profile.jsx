@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { User, Camera, ImagePlus, Link2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import ProfileHeader from '@/components/profile/ProfileHeader';
+import ProfileSidebar from '@/components/profile/ProfileSidebar';
+import ProfileInfoCard from '@/components/profile/ProfileInfoCard';
+import ImageUploadSection from '@/components/profile/ImageUploadSection';
 import { uploadProfileImage, uploadCoverImage } from '@/lib/uploadProfileImage';
 
 /** Default avatar when no profile image – show icon in UI */
@@ -109,159 +111,121 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <Navbar />
-      <main className="container mx-auto px-6 md:px-10 py-12 flex justify-center">
-        <Card className="w-full max-w-lg bg-zinc-900/80 backdrop-blur border border-white/10 overflow-hidden">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-white">Profile</CardTitle>
-            <CardDescription className="text-zinc-400">Your account details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Cover image (photographers only) */}
-            {isPhotographer && (
-              <div className="space-y-2 -mx-6 -mt-2">
-                <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center overflow-hidden">
-                  {user.cover ? (
-                    <img src={user.cover} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <ImagePlus className="h-10 w-10 text-zinc-500" aria-hidden />
-                  )}
-                  {uploadsEnabled && (
-                    <>
-                      <input
-                        ref={coverInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleCoverChange}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="absolute bottom-2 right-2 opacity-90"
-                        disabled={coverUploading}
-                        onClick={() => coverInputRef.current?.click()}
-                      >
-                        {coverUploading ? 'Uploading...' : 'Upload Cover Image'}
-                      </Button>
-                    </>
-                  )}
+      <main className="pb-16">
+        <ProfileHeader
+          user={user}
+          avatar={avatar}
+          accountType={accountType}
+          isPhotographer={isPhotographer}
+          coverUploading={coverUploading}
+          uploading={uploading}
+          onEditCover={() => coverInputRef.current?.click()}
+          onEditProfilePhoto={() => fileInputRef.current?.click()}
+          onLogout={logout}
+        />
+
+        <div className="container mx-auto px-6 md:px-10">
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverChange}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+
+          <div className="grid gap-8 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <ProfileSidebar user={user} avatar={avatar} />
+
+            <div className="space-y-8">
+              <ProfileInfoCard
+                title="Basic Info"
+                description="Your primary account details and identity information."
+              >
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Name</p>
+                    <p className="mt-2 text-base font-medium text-white">{user.name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Email</p>
+                    <p className="mt-2 text-base font-medium text-white">{user.email || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Account Type</p>
+                    <p className="mt-2 text-base font-medium text-white">{accountType}</p>
+                  </div>
                 </div>
-                {coverError && <p className="text-sm text-red-400">{coverError}</p>}
-                {/* Fallback: set cover by URL (calls API directly so it reflects on Photographers page) */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-zinc-500 flex items-center gap-1">
-                    <Link2 className="h-3 w-3" />
-                    Or set cover by image URL
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={coverUrlInput}
-                      onChange={(e) => setCoverUrlInput(e.target.value)}
-                      className="flex-1 rounded-md border border-zinc-600 bg-zinc-800/50 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                    />
+              </ProfileInfoCard>
+
+              <ImageUploadSection
+                isPhotographer={isPhotographer}
+                user={user}
+                avatar={avatar}
+                uploadsEnabled={uploadsEnabled}
+                uploading={uploading}
+                coverUploading={coverUploading}
+                uploadError={uploadError}
+                coverError={coverError}
+                coverUrlInput={coverUrlInput}
+                onCoverUrlInputChange={(e) => setCoverUrlInput(e.target.value)}
+                onEditCover={() => coverInputRef.current?.click()}
+                onSaveCoverUrl={() => handleSetCoverByUrl()}
+                onEditProfilePhoto={() => fileInputRef.current?.click()}
+              />
+
+              {isPhotographer ? (
+                <ProfileInfoCard
+                  title="Bio"
+                  description="Introduce your style, specialties, and experience for future portfolio discovery."
+                >
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="bio" className="text-sm font-medium text-zinc-300">Photographer Bio</label>
+                    <span className={`text-xs ${bioCharacters > 500 ? 'text-red-400' : 'text-zinc-500'}`}>
+                      {bioCharacters}/500
+                    </span>
+                  </div>
+                  <textarea
+                    id="bio"
+                    value={bio}
+                    maxLength={500}
+                    rows={6}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="w-full rounded-[1.5rem] border border-zinc-700 bg-zinc-800/80 px-4 py-4 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+                    placeholder="Tell clients about your photography style, experience, and specialties..."
+                  />
+                  {bioError ? <p className="text-sm text-red-400">{bioError}</p> : null}
+                  <div className="flex justify-end">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="shrink-0 border-zinc-600 text-zinc-300"
-                      disabled={coverUploading || !coverUrlInput.trim()}
-                      onClick={() => handleSetCoverByUrl()}
+                      className="rounded-2xl border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                      disabled={bioSaving || bioCharacters > 500}
+                      onClick={handleBioSave}
                     >
-                      {coverUploading ? 'Saving...' : 'Save'}
+                      {bioSaving ? 'Saving...' : 'Save Bio'}
                     </Button>
                   </div>
+                </ProfileInfoCard>
+              ) : null}
+
+              <ProfileInfoCard
+                title="Portfolio Preview"
+                description="Reserved space for recent uploads, featured work, and quick portfolio actions."
+              >
+                <div className="rounded-[1.5rem] border border-dashed border-zinc-700 bg-zinc-950/40 p-6 text-sm text-zinc-400">
+                  Portfolio preview widgets will appear here as you add more profile features.
                 </div>
-              </div>
-            )}
-            <div className="flex flex-col items-center gap-3">
-              <div className="rounded-full h-24 w-24 flex items-center justify-center bg-zinc-700 border border-zinc-600 overflow-hidden">
-                {avatar ? (
-                  <img src={avatar} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-12 w-12 text-zinc-400" />
-                )}
-              </div>
-              {uploadsEnabled && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePhotoChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
-                    disabled={uploading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    {uploading ? 'Uploading...' : 'Change photo'}
-                  </Button>
-                </>
-              )}
-              {uploadError && (
-                <p className="text-sm text-red-400">{uploadError}</p>
-              )}
+              </ProfileInfoCard>
             </div>
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-sm text-zinc-500">Name</dt>
-                <dd className="text-white font-medium">{user.name || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-zinc-500">Email</dt>
-                <dd className="text-white font-medium">{user.email || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-zinc-500">Account type</dt>
-                <dd className="text-white font-medium">{accountType}</dd>
-              </div>
-            </dl>
-            {isPhotographer ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="bio" className="text-sm text-zinc-500">Bio</label>
-                  <span className={`text-xs ${bioCharacters > 500 ? 'text-red-400' : 'text-zinc-500'}`}>
-                    {bioCharacters}/500
-                  </span>
-                </div>
-                <textarea
-                  id="bio"
-                  value={bio}
-                  maxLength={500}
-                  rows={5}
-                  onChange={(e) => setBio(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                  placeholder="Tell clients about your photography style, experience, and specialties..."
-                />
-                {bioError ? <p className="text-sm text-red-400">{bioError}</p> : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
-                  disabled={bioSaving || bioCharacters > 500}
-                  onClick={handleBioSave}
-                >
-                  {bioSaving ? 'Saving...' : 'Save Bio'}
-                </Button>
-              </div>
-            ) : null}
-            <Button
-              variant="outline"
-              className="w-full border-zinc-600 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-              onClick={logout}
-            >
-              Logout
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
       <Footer />
     </div>

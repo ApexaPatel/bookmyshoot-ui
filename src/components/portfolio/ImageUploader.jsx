@@ -1,10 +1,18 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, ImagePlus, Loader2, Star, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { uploadPortfolioImage } from '@/lib/uploadProfileImage';
 
-export default function ImageUploader({ gallery, setGallery, thumbnailUrl, setThumbnailUrl }) {
+export default function ImageUploader({
+  gallery,
+  setGallery,
+  thumbnailUrl,
+  setThumbnailUrl,
+  maxGalleryImages = 10,
+  planCode = 'free',
+}) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -14,8 +22,12 @@ export default function ImageUploader({ gallery, setGallery, thumbnailUrl, setTh
     event.target.value = '';
     if (!files.length) return;
 
-    if (gallery.length + files.length > 10) {
-      setError('You can upload up to 10 gallery images.');
+    if (gallery.length + files.length > maxGalleryImages) {
+      setError(
+        planCode === 'free'
+          ? 'Free Plan allows only 5 images per photoshoot. Upgrade to upload more images.'
+          : `You can upload up to ${maxGalleryImages} gallery images on your current plan.`
+      );
       return;
     }
 
@@ -76,14 +88,17 @@ export default function ImageUploader({ gallery, setGallery, thumbnailUrl, setTh
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-white">Gallery Images</p>
-          <p className="text-xs text-zinc-500">Upload 3 to 10 images. Pick any image as the thumbnail.</p>
+          <p className="text-xs text-zinc-500">Upload 3 to {maxGalleryImages} images. Pick any image as the thumbnail.</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Images: {gallery.length} / {maxGalleryImages} used
+          </p>
         </div>
         <Button
           type="button"
           variant="outline"
           className="border-zinc-600 text-zinc-300"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading || gallery.length >= 10}
+          disabled={uploading || gallery.length >= maxGalleryImages}
         >
           {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
           {uploading ? 'Uploading...' : 'Add Images'}
@@ -99,7 +114,16 @@ export default function ImageUploader({ gallery, setGallery, thumbnailUrl, setTh
         onChange={handleFiles}
       />
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? (
+        <div className="space-y-2">
+          <p className="text-sm text-red-400">{error}</p>
+          {planCode === 'free' && error.includes('Upgrade') ? (
+            <Link to="/billing#available-plans" className="text-sm font-medium text-indigo-400 hover:text-indigo-300">
+              Upgrade Plan
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         {gallery.map((image, index) => (

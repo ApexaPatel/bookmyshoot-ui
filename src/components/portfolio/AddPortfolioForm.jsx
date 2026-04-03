@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { IndianRupee, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ImageUploader from '@/components/portfolio/ImageUploader';
+import FreePlanLimitModal from '@/components/billing/FreePlanLimitModal';
+import { getPhotographerPlanRules } from '@/lib/photographerPlans';
+import { parseApiError } from '@/lib/parseApiError';
 
 function TagInput({ label, placeholder, values, onChange }) {
   const [input, setInput] = useState('');
@@ -56,11 +59,12 @@ function TagInput({ label, placeholder, values, onChange }) {
   );
 }
 
-export default function AddPortfolioForm({ initialData, mode = 'create' }) {
+export default function AddPortfolioForm({ initialData, mode = 'create', planInfo }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState('');
+  const [limitModal, setLimitModal] = useState({ open: false, message: '' });
   const [form, setForm] = useState({
     event_name: '',
     shoot_date: '',
@@ -94,6 +98,23 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
   }, [initialData]);
 
   const title = useMemo(() => (mode === 'edit' ? 'Edit Photoshoot' : 'Add New Photoshoot'), [mode]);
+  const effectivePlan = useMemo(
+    () => {
+      const base = getPhotographerPlanRules(planInfo?.code);
+      return {
+        code: planInfo?.code ?? base.code,
+        name: planInfo?.name ?? base.name,
+        price_inr: planInfo?.price_inr ?? base.priceInr ?? 0,
+        max_gallery_images: planInfo?.max_gallery_images ?? base.maxGalleryImages,
+        max_photoshoots: planInfo?.max_photoshoots ?? base.maxPhotoshoots,
+        remaining_photoshoots: planInfo?.remaining_photoshoots,
+        monthly_limit: planInfo?.monthly_limit ?? base.monthlyLimit,
+        plan_started_at: planInfo?.plan_started_at ?? null,
+        plan_expires_at: planInfo?.plan_expires_at ?? null,
+      };
+    },
+    [planInfo]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -105,6 +126,10 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
     }
     if (form.gallery.length < 3) {
       setError('Add at least 3 gallery images.');
+      return;
+    }
+    if (form.gallery.length > effectivePlan.max_gallery_images) {
+      setError(`${effectivePlan.name} plan allows up to ${effectivePlan.max_gallery_images} gallery images.`);
       return;
     }
 
@@ -136,10 +161,16 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const detail = data.detail;
-        throw new Error(typeof detail === 'string' ? detail : 'Failed to save portfolio');
+        const parsed = await parseApiError(response);
+        if (
+          parsed.errorCode === 'FREE_PLAN_LIMIT_REACHED' ||
+          parsed.errorCode === 'FREE_PLAN_IMAGE_LIMIT_REACHED'
+        ) {
+          setLimitModal({ open: true, message: parsed.message });
+          return;
+        }
+        throw new Error(parsed.message || 'Failed to save portfolio');
       }
 
       navigate('/portfolio');
@@ -182,6 +213,24 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
     <Card className="border-zinc-800 bg-zinc-900/80">
       <CardHeader>
         <CardTitle className="text-2xl text-white">{title}</CardTitle>
+        <p className="text-sm text-zinc-400">
+          {effectivePlan.name}
+          {effectivePlan.price_inr > 0 ? (
+            <span className="inline-flex items-center">
+              {' plan at '}
+              <IndianRupee className="mx-0.5 h-3.5 w-3.5" />
+              {effectivePlan.price_inr}/month
+            </span>
+          ) : (
+            <span className="inline-flex items-center">
+              {' plan at '}
+              <IndianRupee className="mx-0.5 h-3.5 w-3.5" />
+              0 for Getting started
+            </span>
+          )}
+          : up to {effectivePlan.max_photoshoots} photoshoots
+          {effectivePlan.monthly_limit ? ' per billing month' : ' total (lifetime on Free)'} and {effectivePlan.max_gallery_images} gallery images per photoshoot.
+        </p>
       </CardHeader>
       <CardContent>
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -213,8 +262,12 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
                 value={form.shoot_date}
                 onChange={(event) => setForm((prev) => ({ ...prev, shoot_date: event.target.value }))}
                 className="bg-zinc-800 border-zinc-700 text-white"
+                max={effectivePlan.monthly_limit ? new Date().toISOString().slice(0, 10) : undefined}
                 required
               />
+              {effectivePlan.monthly_limit ? (
+                <p className="text-xs text-zinc-500">Paid plans only allow past or current event dates.</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -266,6 +319,8 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
             }
             thumbnailUrl={form.thumbnail_url}
             setThumbnailUrl={(thumbnail_url) => setForm((prev) => ({ ...prev, thumbnail_url }))}
+            maxGalleryImages={effectivePlan.max_gallery_images}
+            planCode={effectivePlan.code}
           />
 
           <div className="flex justify-end gap-3">
@@ -283,6 +338,11 @@ export default function AddPortfolioForm({ initialData, mode = 'create' }) {
           </div>
         </form>
       </CardContent>
+      <FreePlanLimitModal
+        open={limitModal.open}
+        message={limitModal.message}
+        onClose={() => setLimitModal({ open: false, message: '' })}
+      />
     </Card>
   );
 }

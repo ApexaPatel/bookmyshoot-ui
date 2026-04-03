@@ -15,6 +15,9 @@ function normalizeUser(apiUser) {
     avatar: apiUser.profile_picture ?? null,
     cover: apiUser.cover_image ?? null,
     role: apiUser.role ?? 'customer',
+    photographerPlan: apiUser.photographer_plan ?? 'free',
+    planStartedAt: apiUser.plan_started_at ?? null,
+    planExpiresAt: apiUser.plan_expires_at ?? null,
   };
 }
 
