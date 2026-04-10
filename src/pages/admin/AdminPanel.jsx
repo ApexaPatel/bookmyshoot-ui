@@ -1,20 +1,69 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Camera, LayoutDashboard, Menu, Trash2, Users, Wallet } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  CartesianGrid,
+} from 'recharts';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchInput from '@/components/admin/SearchInput';
+import FilterDropdown from '@/components/admin/FilterDropdown';
+import AdminTable from '@/components/admin/AdminTable';
+import RoleBadge from '@/components/admin/RoleBadge';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { useAuthStore } from '@/store/authStore';
 
-const TABS = ['dashboard', 'users', 'photographers', 'payments'];
+const TABS = [
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'users', label: 'Users', icon: Users },
+  { key: 'photographers', label: 'Photographers', icon: Camera },
+  { key: 'payments', label: 'Payments', icon: Wallet },
+];
 
 function fmtCurrency(v) {
   return `₹${Number(v || 0).toLocaleString()}`;
 }
 
+function formatLongDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function titleCase(text) {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function getPaymentRowName(row, currentTab) {
+  if (currentTab === 'subscriptions') {
+    return row.plan ? titleCase(String(row.plan)) : '—';
+  }
+  if (currentTab === 'expenses') {
+    return row.title || row.description || '—';
+  }
+  return row.user_name || row.full_name || row.user_email || row.customer_id || row.photographer_id || '—';
+}
+
 export default function AdminPanel() {
   const token = useAuthStore((s) => s.token);
   const [tab, setTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -97,7 +146,7 @@ export default function AdminPanel() {
     return () => {
       cancelled = true;
     };
-  }, [tab, token, userFilters, photographerFilters, paymentTab, authHeaders]);
+  }, [tab, token, userFilters, photographerFilters, paymentTab, apiGet]);
 
   async function updateRole(userId, role) {
     try {
@@ -153,18 +202,44 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="container mx-auto px-6 py-8 md:px-10">
-        <div className="grid gap-6 md:grid-cols-[220px,1fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Panel</CardTitle>
+      <main className="container mx-auto p-4 md:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Admin Panel</h1>
+            <p className="text-sm text-muted-foreground">Manage platform users, photographers, analytics, and payments</p>
+          </div>
+          <Button variant="outline" className="md:hidden" onClick={() => setSidebarOpen((v) => !v)}>
+            <Menu className="mr-2 h-4 w-4" /> Menu
+          </Button>
+        </div>
+        <div className="grid gap-6 md:grid-cols-[260px,1fr]">
+          <Card className={`${sidebarOpen ? 'block' : 'hidden'} md:block`}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Navigation</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {TABS.map((t) => (
-                <Button key={t} variant={tab === t ? 'default' : 'outline'} className="w-full justify-start capitalize" onClick={() => setTab(t)}>
-                  {t}
-                </Button>
-              ))}
+            <CardContent className="space-y-1">
+              {TABS.map((t) => {
+                const Icon = t.icon;
+                const active = tab === t.key;
+                return (
+                  <button
+                    type="button"
+                    key={t.key}
+                    onClick={() => {
+                      setTab(t.key);
+                      setSidebarOpen(false);
+                    }}
+                    className={`group flex w-full items-center gap-3 rounded-r-lg border-l-4 px-3 py-2.5 text-sm transition ${
+                      active
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-transparent text-muted-foreground hover:border-primary/40 hover:bg-muted/50 hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {t.label}
+                  </button>
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -182,28 +257,55 @@ export default function AdminPanel() {
                 </div>
                 <Card>
                   <CardHeader><CardTitle>Last 30 Days Activity</CardTitle></CardHeader>
-                  <CardContent className="grid gap-2">
-                    {graph.slice(-10).map((g) => (
-                      <div key={g.date} className="grid grid-cols-[90px,1fr] items-center gap-3 text-sm">
-                        <span className="text-muted-foreground">{g.date.slice(5)}</span>
-                        <div className="flex gap-2">
-                          <Bar label="R" value={g.registrations} color="bg-primary" />
-                          <Bar label="S" value={g.shoots} color="bg-secondary" />
-                          <Bar label="P" value={g.subscriptions} color="bg-accent" />
-                        </div>
-                      </div>
-                    ))}
+                  <CardContent className="h-[320px]">
+                    {graph.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No activity data available.</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={graph}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickFormatter={(v) => String(v).slice(5)} />
+                          <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              borderColor: 'hsl(var(--border))',
+                              color: 'hsl(var(--foreground))',
+                            }}
+                          />
+                          <Legend />
+                          <Line type="monotone" dataKey="photographers" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="customers" stroke="#10b981" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="subscriptions" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="shoots" stroke="#ef4444" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader><CardTitle>Event Type Distribution</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
-                    {eventStats.map((e) => (
-                      <div key={e.event_type} className="flex items-center justify-between text-sm">
-                        <span className="capitalize">{e.event_type}</span>
-                        <span className="font-medium">{e.count}</span>
-                      </div>
-                    ))}
+                  <CardContent className="h-[320px]">
+                    {eventStats.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No event stats available.</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={eventStats.map((e) => ({ ...e, event_type: String(e.event_type || '').replaceAll('_', ' ') }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="event_type" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                          <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                          <Tooltip
+                            formatter={(value) => [value, 'Count']}
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              borderColor: 'hsl(var(--border))',
+                              color: 'hsl(var(--foreground))',
+                            }}
+                          />
+                          <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
               </>
@@ -211,20 +313,83 @@ export default function AdminPanel() {
 
             {tab === 'users' ? (
               <Card>
-                <CardHeader><CardTitle>Users</CardTitle></CardHeader>
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-xl">Users</CardTitle>
+                  <p className="text-sm text-muted-foreground">Manage platform users and roles</p>
+                </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <Input placeholder="Search name/email" value={userFilters.search} onChange={(e) => setUserFilters((f) => ({ ...f, page: 1, search: e.target.value }))} />
-                    <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={userFilters.role} onChange={(e) => setUserFilters((f) => ({ ...f, page: 1, role: e.target.value }))}>
-                      <option value="">All roles</option>
-                      <option value="customer">customer</option>
-                      <option value="photographer">photographer</option>
-                      <option value="admin">admin</option>
-                      <option value="staff">staff</option>
-                      <option value="super_admin">super_admin</option>
-                    </select>
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <SearchInput
+                        placeholder="Search users by name or email"
+                        value={userFilters.search}
+                        onChange={(e) => setUserFilters((f) => ({ ...f, page: 1, search: e.target.value }))}
+                      />
+                      <FilterDropdown
+                        value={userFilters.role}
+                        onValueChange={(value) => setUserFilters((f) => ({ ...f, page: 1, role: value }))}
+                        placeholder="All roles"
+                        options={[
+                          { label: 'customer', value: 'customer' },
+                          { label: 'photographer', value: 'photographer' },
+                          { label: 'admin', value: 'admin' },
+                          { label: 'staff', value: 'staff' },
+                          { label: 'super_admin', value: 'super_admin' },
+                        ]}
+                      />
+                    </div>
                   </div>
-                  <TableUsers rows={users.items || []} onRoleChange={updateRole} onDelete={(id) => softDeleteUser('users', id)} />
+                  <AdminTable
+                    rows={users.items || []}
+                    emptyState="No users found"
+                    columns={[
+                      { key: 'name', label: 'Name', render: (u) => <span className="font-medium">{u.full_name}</span> },
+                      { key: 'email', label: 'Email', render: (u) => <span className="text-muted-foreground">{u.email}</span> },
+                      {
+                        key: 'role',
+                        label: 'Role',
+                        render: (u) => (
+                          <div className="relative z-20 flex items-center gap-2">
+                            <RoleBadge role={u.role} />
+                            <Select value={u.role} onValueChange={(value) => updateRole(u.id, value)}>
+                              <SelectTrigger className="h-8 w-[140px] rounded-full text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent
+                                position="popper"
+                                sideOffset={6}
+                                className="z-[90] rounded-lg border border-border bg-[#030711] shadow-lg"
+                                style={{ backgroundColor: '#030711' }}
+                              >
+                                <SelectItem value="customer">customer</SelectItem>
+                                <SelectItem value="photographer">photographer</SelectItem>
+                                <SelectItem value="admin">admin</SelectItem>
+                                <SelectItem value="staff">staff</SelectItem>
+                                <SelectItem value="super_admin">super_admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ),
+                      },
+                      { key: 'created_at', label: 'Registered Date', render: (u) => formatLongDate(u.created_at) },
+                      {
+                        key: 'actions',
+                        label: 'Actions',
+                        render: (u) => (
+                          <ConfirmDialog
+                            title="Delete user?"
+                            description={`This will hide ${u.full_name} from active lists.`}
+                            onConfirm={() => softDeleteUser('users', u.id)}
+                            trigger={
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </Button>
+                            }
+                          />
+                        ),
+                      },
+                    ]}
+                  />
                   <Pager page={users.page} total={users.total} limit={users.limit} onPrev={() => setUserFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))} onNext={() => setUserFilters((f) => ({ ...f, page: f.page + 1 }))} />
                 </CardContent>
               </Card>
@@ -232,32 +397,55 @@ export default function AdminPanel() {
 
             {tab === 'photographers' ? (
               <Card>
-                <CardHeader><CardTitle>Photographers</CardTitle></CardHeader>
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-xl">Photographers</CardTitle>
+                  <p className="text-sm text-muted-foreground">Manage photographer listings and plans</p>
+                </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <Input placeholder="Search name/email" value={photographerFilters.search} onChange={(e) => setPhotographerFilters((f) => ({ ...f, page: 1, search: e.target.value }))} />
-                    <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={photographerFilters.plan} onChange={(e) => setPhotographerFilters((f) => ({ ...f, page: 1, plan: e.target.value }))}>
-                      <option value="">All plans</option>
-                      <option value="free">free</option>
-                      <option value="pro">pro</option>
-                      <option value="premium">premium</option>
-                    </select>
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <SearchInput
+                        placeholder="Search photographers by name or email"
+                        value={photographerFilters.search}
+                        onChange={(e) => setPhotographerFilters((f) => ({ ...f, page: 1, search: e.target.value }))}
+                      />
+                      <FilterDropdown
+                        value={photographerFilters.plan}
+                        onValueChange={(value) => setPhotographerFilters((f) => ({ ...f, page: 1, plan: value }))}
+                        placeholder="All plans"
+                        options={[
+                          { label: 'free', value: 'free' },
+                          { label: 'pro', value: 'pro' },
+                          { label: 'premium', value: 'premium' },
+                        ]}
+                      />
+                    </div>
                   </div>
-                  <table className="w-full text-sm">
-                    <thead className="text-muted-foreground">
-                      <tr><th className="py-2 text-left">Name</th><th className="py-2 text-left">Email</th><th className="py-2 text-left">Plan</th><th className="py-2 text-left">Action</th></tr>
-                    </thead>
-                    <tbody>
-                      {(photographers.items || []).map((p) => (
-                        <tr key={p.id} className="border-t border-border">
-                          <td className="py-2">{p.full_name}</td>
-                          <td className="py-2">{p.email}</td>
-                          <td className="py-2 capitalize">{p.photographer_plan || 'free'}</td>
-                          <td className="py-2"><Button size="sm" variant="outline" onClick={() => softDeleteUser('photographers', p.id)}>Soft Delete</Button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <AdminTable
+                    rows={photographers.items || []}
+                    emptyState="No photographers found"
+                    columns={[
+                      { key: 'name', label: 'Name', render: (p) => <span className="font-medium">{p.full_name}</span> },
+                      { key: 'email', label: 'Email', render: (p) => <span className="text-muted-foreground">{p.email}</span> },
+                      { key: 'plan', label: 'Plan', render: (p) => <span className="capitalize">{p.photographer_plan || 'free'}</span> },
+                      {
+                        key: 'action',
+                        label: 'Action',
+                        render: (p) => (
+                          <ConfirmDialog
+                            title="Delete photographer?"
+                            description={`This will hide ${p.full_name} from active lists.`}
+                            onConfirm={() => softDeleteUser('photographers', p.id)}
+                            trigger={
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </Button>
+                            }
+                          />
+                        ),
+                      },
+                    ]}
+                  />
                   <Pager page={photographers.page} total={photographers.total} limit={photographers.limit} onPrev={() => setPhotographerFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))} onNext={() => setPhotographerFilters((f) => ({ ...f, page: f.page + 1 }))} />
                 </CardContent>
               </Card>
@@ -279,29 +467,20 @@ export default function AdminPanel() {
                     <div className="flex flex-wrap gap-2">
                       {['subscriptions', 'photoshoots', 'expenses'].map((t) => (
                         <Button key={t} variant={paymentTab === t ? 'default' : 'outline'} onClick={() => setPaymentTab(t)}>
-                          {t}
+                          {titleCase(t)}
                         </Button>
                       ))}
                     </div>
-                    <table className="w-full text-sm">
-                      <thead className="text-muted-foreground">
-                        <tr><th className="py-2 text-left">ID</th><th className="py-2 text-left">Amount</th><th className="py-2 text-left">Date</th><th className="py-2 text-left">Action</th></tr>
-                      </thead>
-                      <tbody>
-                        {paymentRows.map((r) => (
-                          <tr key={r.id} className="border-t border-border">
-                            <td className="py-2 font-mono text-xs">{r.id}</td>
-                            <td className="py-2">{fmtCurrency(r.amount || r.total_amount || 0)}</td>
-                            <td className="py-2">{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</td>
-                            <td className="py-2">
-                              {paymentTab === 'expenses' ? (
-                                <Button size="sm" variant="outline" onClick={() => softDeleteUser('expenses', r.id)}>Delete</Button>
-                              ) : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <AdminTable
+                      rows={paymentRows}
+                      emptyState="No payment records found"
+                      columns={[
+                        { key: 'id', label: 'ID', render: (r) => <span className="font-mono text-xs">{r.id}</span> },
+                        { key: 'name', label: 'Name', render: (r) => getPaymentRowName(r, paymentTab) },
+                        { key: 'amount', label: 'Amount', render: (r) => fmtCurrency(r.amount || r.total_amount || 0) },
+                        { key: 'date', label: 'Date', render: (r) => (r.created_at ? new Date(r.created_at).toLocaleString() : '—') },
+                      ]}
+                    />
                   </CardContent>
                 </Card>
                 <Card>
@@ -327,60 +506,18 @@ export default function AdminPanel() {
 
 function Metric({ title, value }) {
   return (
-    <Card>
+    <Card className="border-border/80">
       <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
       <CardContent><p className="text-2xl font-semibold">{value}</p></CardContent>
     </Card>
   );
 }
 
-function Bar({ label, value, color }) {
-  const width = Math.max(4, Math.min(100, Number(value || 0) * 12));
-  return (
-    <div className="flex w-full items-center gap-2">
-      <span className="w-4 text-xs text-muted-foreground">{label}</span>
-      <div className="h-2 w-full rounded bg-muted">
-        <div className={`h-2 rounded ${color}`} style={{ width: `${width}%` }} />
-      </div>
-      <span className="w-6 text-right text-xs">{value}</span>
-    </div>
-  );
-}
-
-function TableUsers({ rows, onRoleChange, onDelete }) {
-  return (
-    <table className="w-full text-sm">
-      <thead className="text-muted-foreground">
-        <tr><th className="py-2 text-left">Name</th><th className="py-2 text-left">Email</th><th className="py-2 text-left">Role</th><th className="py-2 text-left">Created</th><th className="py-2 text-left">Action</th></tr>
-      </thead>
-      <tbody>
-        {rows.map((u) => (
-          <tr key={u.id} className="border-t border-border">
-            <td className="py-2">{u.full_name}</td>
-            <td className="py-2">{u.email}</td>
-            <td className="py-2">
-              <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={u.role} onChange={(e) => onRoleChange(u.id, e.target.value)}>
-                <option value="customer">customer</option>
-                <option value="photographer">photographer</option>
-                <option value="admin">admin</option>
-                <option value="staff">staff</option>
-                <option value="super_admin">super_admin</option>
-              </select>
-            </td>
-            <td className="py-2">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
-            <td className="py-2"><Button size="sm" variant="outline" onClick={() => onDelete(u.id)}>Soft Delete</Button></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 function Pager({ page, total, limit, onPrev, onNext }) {
   const hasNext = page * limit < total;
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">Page {page} • Total {total}</span>
+    <div className="flex items-center justify-end gap-3 text-sm">
+      <span className="text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / limit))}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={onPrev} disabled={page <= 1}>Prev</Button>
         <Button size="sm" variant="outline" onClick={onNext} disabled={!hasNext}>Next</Button>
