@@ -11,24 +11,20 @@ import PortfolioList from '@/pages/portfolio/PortfolioList';
 import PortfolioFormPage from '@/pages/portfolio/PortfolioFormPage';
 import Billing from '@/pages/billing/Billing';
 import AdminSubscriptions from '@/pages/admin/AdminSubscriptions';
+import AdminPanel from '@/pages/admin/AdminPanel';
 import AdminRoute from '@/components/AdminRoute';
 import OrganizationsList from '@/pages/organizations/OrganizationsList';
 import OrganizationDetails from '@/pages/organizations/OrganizationDetails';
 import PhotographerDetails from '@/pages/photographer/PhotographerDetails';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AuthProvider } from '@/context/AuthContext';
-import { useEffect } from 'react';
 
 function App() {
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
-
   return (
     <Router>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
-          <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-zinc-950 text-white flex flex-col">
+          <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-background text-foreground flex flex-col">
             <div className="flex-1 flex flex-col">
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -60,6 +56,14 @@ function App() {
                     <ProtectedRoute>
                       <Billing />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminPanel />
+                    </AdminRoute>
                   }
                 />
                 <Route

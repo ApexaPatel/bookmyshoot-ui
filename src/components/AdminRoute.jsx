@@ -17,7 +17,8 @@ export default function AdminRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user?.role !== 'super_admin') {
+  const allowedRoles = ['super_admin', 'admin', 'staff'];
+  if (!allowedRoles.includes(user?.role)) {
     return <Navigate to="/" replace />;
   }
 

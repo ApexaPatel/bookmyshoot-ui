@@ -140,6 +140,13 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
+                {['super_admin', 'admin', 'staff'].includes(user?.role) ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Admin Panel
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
                 {user?.role === 'super_admin' ? (
                   <DropdownMenuItem asChild>
                     <Link to="/admin/subscriptions" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
