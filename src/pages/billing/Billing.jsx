@@ -14,13 +14,13 @@ import { getPhotographerPlanRules } from '@/lib/photographerPlans';
 
 const PLAN_COPY = {
   free: {
-    body: 'Includes up to 10 photoshoots total on the Free plan (lifetime until you upgrade) with a maximum of 5 images per photoshoot.',
+    body: 'Best for beginners. Includes up to 10 lifetime photoshoots with 5 images per shoot. Auction view and bidding are locked on Free.',
   },
   pro: {
-    body: 'Includes up to 20 photoshoots per month with up to 7 images per photoshoot. Future shoot dates are not allowed.',
+    body: 'Includes auction access and bidding with better visibility, plus up to 20 photoshoots per month and 7 images per photoshoot.',
   },
   premium: {
-    body: 'Includes up to 28 photoshoots per month with up to 10 images per photoshoot. Future shoot dates are not allowed.',
+    body: 'Includes all Pro features with priority auction ranking and premium visibility, plus up to 28 photoshoots per month and 10 images per shoot.',
   },
 };
 

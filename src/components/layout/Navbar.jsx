@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  const isAdminRole = ['super_admin', 'admin', 'staff'].includes(user?.role);
 
   const handleLogout = () => {
     logout();
@@ -86,6 +87,12 @@ const Navbar = () => {
           <Link to="/organizations" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Organizations
           </Link>
+          <Link to="/quote" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
+            Get Quote
+          </Link>
+          <Link to="/auction" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
+            Auctions
+          </Link>
           <Link to="/about" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             About
           </Link>
@@ -137,6 +144,20 @@ const Navbar = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/billing" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
                       Billing
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                {!isAdminRole ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/membership" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Membership
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                {isAuthenticated ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/auction" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Auctions
                     </Link>
                   </DropdownMenuItem>
                 ) : null}

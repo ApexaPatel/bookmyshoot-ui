@@ -18,6 +18,9 @@ import AdminRoute from '@/components/AdminRoute';
 import OrganizationsList from '@/pages/organizations/OrganizationsList';
 import OrganizationDetails from '@/pages/organizations/OrganizationDetails';
 import PhotographerDetails from '@/pages/photographer/PhotographerDetails';
+import QuoteSuggestions from '@/pages/quote/QuoteSuggestions';
+import Membership from '@/pages/membership/Membership';
+import AuctionMarketplace from '@/pages/auction/AuctionMarketplace';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AuthProvider } from '@/context/AuthContext';
 
@@ -42,6 +45,23 @@ function App() {
                 <Route path="/organizations" element={<OrganizationsList />} />
                 <Route path="/organizations/:id" element={<OrganizationDetails />} />
                 <Route path="/photographer/:id" element={<PhotographerDetails />} />
+                <Route path="/quote" element={<QuoteSuggestions />} />
+                <Route
+                  path="/membership"
+                  element={
+                    <ProtectedRoute>
+                      <Membership />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/auction"
+                  element={
+                    <ProtectedRoute>
+                      <AuctionMarketplace />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />

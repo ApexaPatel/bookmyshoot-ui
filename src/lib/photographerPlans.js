@@ -6,7 +6,11 @@ export const PHOTOGRAPHER_PLAN_RULES = {
     maxPhotoshoots: 10,
     maxGalleryImages: 5,
     monthlyLimit: false,
-    description: 'Up to 10 photoshoots total (lifetime on Free) and 5 gallery images per photoshoot.',
+    auctionAccess: false,
+    priorityRanking: false,
+    bidLimitLabel: 'No auction bids',
+    description:
+      'For beginners. Up to 10 photoshoots total (lifetime), 5 gallery images per photoshoot, and no auction access.',
   },
   pro: {
     code: 'pro',
@@ -15,7 +19,11 @@ export const PHOTOGRAPHER_PLAN_RULES = {
     maxPhotoshoots: 20,
     maxGalleryImages: 7,
     monthlyLimit: true,
-    description: '₹299/month. Up to 20 photoshoots in the active monthly billing cycle, event dates cannot be in the future, and 7 gallery images per photoshoot.',
+    auctionAccess: true,
+    priorityRanking: false,
+    bidLimitLabel: 'Limited bids',
+    description:
+      '₹299/month. Auction access with bidding enabled, higher search visibility, and 20 photoshoots/month with 7 images per shoot.',
   },
   premium: {
     code: 'premium',
@@ -24,7 +32,11 @@ export const PHOTOGRAPHER_PLAN_RULES = {
     maxPhotoshoots: 28,
     maxGalleryImages: 10,
     monthlyLimit: true,
-    description: '₹399/month. Up to 28 photoshoots in the active monthly billing cycle and 10 gallery images per photoshoot.',
+    auctionAccess: true,
+    priorityRanking: true,
+    bidLimitLabel: 'High/Unlimited bids',
+    description:
+      '₹399/month. All Pro features plus priority auction ranking, featured badge, and 28 photoshoots/month with 10 images per shoot.',
   },
 };
 

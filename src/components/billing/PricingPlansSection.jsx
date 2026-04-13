@@ -73,6 +73,14 @@ export default function PricingPlansSection({
                       : 'Future event dates are allowed'}
                   </span>
                 </div>
+                <div className="flex items-start gap-3">
+                  <Check className="mt-0.5 h-4 w-4 text-emerald-400" />
+                  <span>{plan.auctionAccess ? 'Can view auctions and place bids' : 'No auction access (upgrade required)'}</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Check className="mt-0.5 h-4 w-4 text-emerald-400" />
+                  <span>{plan.priorityRanking ? 'Priority ranking in bidder list' : 'Standard ranking in bidder list'}</span>
+                </div>
               </div>
 
               {compact ? null : plan.priceInr > 0 && onUpgrade && canUpgradeTo(plan.code) ? (

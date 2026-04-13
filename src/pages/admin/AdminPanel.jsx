@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Camera, LayoutDashboard, Menu, Trash2, Users, Wallet } from 'lucide-react';
+import { BriefcaseBusiness, Camera, Copy, Crown, LayoutDashboard, Menu, ShieldCheck, Sparkles, Trash2, Users, Wallet } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -30,6 +30,7 @@ const TABS = [
   { key: 'users', label: 'Users', icon: Users },
   { key: 'photographers', label: 'Photographers', icon: Camera },
   { key: 'payments', label: 'Payments', icon: Wallet },
+  { key: 'plans', label: 'Plans & Membership', icon: BriefcaseBusiness },
 ];
 
 function fmtCurrency(v) {
@@ -75,7 +76,12 @@ export default function AdminPanel() {
   const [paymentsSummary, setPaymentsSummary] = useState(null);
   const [paymentTab, setPaymentTab] = useState('subscriptions');
   const [paymentRows, setPaymentRows] = useState([]);
+  const [membershipFilters, setMembershipFilters] = useState({ search: '', status: '', from: '', to: '' });
   const [expenseForm, setExpenseForm] = useState({ title: '', amount: '', description: '' });
+  const [plans, setPlans] = useState([]);
+  const [membership, setMembership] = useState(null);
+  const [membershipMetrics, setMembershipMetrics] = useState(null);
+  const [planStats, setPlanStats] = useState(null);
 
   const [userFilters, setUserFilters] = useState({ search: '', role: '', page: 1, limit: 10 });
   const [photographerFilters, setPhotographerFilters] = useState({ search: '', plan: '', page: 1, limit: 10 });
@@ -88,6 +94,31 @@ export default function AdminPanel() {
     if (!res.ok) throw new Error(data.detail || 'Request failed');
     return data;
   }, [authHeaders]);
+
+  const fetchPlansData = useCallback(async () => {
+    const [plansResp, membershipResp, planStatsResp] = await Promise.all([
+      apiGet('/api/admin/plans'),
+      apiGet('/api/admin/membership'),
+      apiGet('/api/admin/photographers/plan-stats'),
+    ]);
+    const rawPlans = Array.isArray(plansResp.items) ? plansResp.items : [];
+    const byName = new Map();
+    rawPlans.forEach((plan) => {
+      const key = String(plan?.name || '').toLowerCase();
+      if (!key || byName.has(key)) return;
+      byName.set(key, plan);
+    });
+    const planRows = ['free', 'pro', 'premium'].map((name) => byName.get(name)).filter(Boolean);
+    setPlans(planRows);
+    setMembership(membershipResp.config || null);
+    setMembershipMetrics(membershipResp.metrics || null);
+    setPlanStats({
+      freeCount: Number(planStatsResp.free || 0),
+      proCount: Number(planStatsResp.pro || 0),
+      premiumCount: Number(planStatsResp.premium || 0),
+      conversionRate: Number(planStatsResp.conversion_rate || 0).toFixed(1),
+    });
+  }, [apiGet]);
 
   useEffect(() => {
     if (!token) return;
@@ -128,13 +159,25 @@ export default function AdminPanel() {
           const data = await apiGet(`/api/admin/photographers?${q.toString()}`);
           if (!cancelled) setPhotographers(data);
         } else if (tab === 'payments') {
+          const paymentsQuery = new URLSearchParams({ page: '1', limit: '20' });
+          if (paymentTab === 'memberships') {
+            if (membershipFilters.search) paymentsQuery.set('search', membershipFilters.search);
+            if (membershipFilters.status) paymentsQuery.set('status', membershipFilters.status);
+            if (membershipFilters.from) paymentsQuery.set('from_date', new Date(membershipFilters.from).toISOString());
+            if (membershipFilters.to) paymentsQuery.set('to_date', new Date(membershipFilters.to).toISOString());
+          }
           const [s, list] = await Promise.all([
             apiGet('/api/admin/payments/summary'),
-            apiGet(`/api/admin/payments/${paymentTab}?page=1&limit=20`),
+            apiGet(`/api/admin/payments/${paymentTab}?${paymentsQuery.toString()}`),
           ]);
           if (!cancelled) {
             setPaymentsSummary(s);
             setPaymentRows(Array.isArray(list.items) ? list.items : []);
+          }
+        } else if (tab === 'plans') {
+          await fetchPlansData();
+          if (!cancelled) {
+            // state already set in fetchPlansData
           }
         }
       } catch (e) {
@@ -146,7 +189,7 @@ export default function AdminPanel() {
     return () => {
       cancelled = true;
     };
-  }, [tab, token, userFilters, photographerFilters, paymentTab, apiGet]);
+  }, [tab, token, userFilters, photographerFilters, paymentTab, membershipFilters, apiGet, fetchPlansData]);
 
   async function updateRole(userId, role) {
     try {
@@ -199,6 +242,84 @@ export default function AdminPanel() {
     }
   }
 
+  async function editPlan(plan) {
+    const price = window.prompt(`Update ${titleCase(plan.name)} monthly price`, String(plan.price ?? 0));
+    if (price === null) return;
+    const res = await fetch(`/api/admin/plans/${plan.name}`, {
+      method: 'PUT',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ price: Number(price) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.detail || 'Failed to update plan');
+      return;
+    }
+    await fetchPlansData();
+  }
+
+  async function togglePlan(plan) {
+    const res = await fetch(`/api/admin/plans/${plan.name}`, {
+      method: 'PUT',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !plan.is_active }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.detail || 'Failed to toggle plan');
+      return;
+    }
+    await fetchPlansData();
+  }
+
+  async function editMembershipPrice() {
+    if (!membership) return;
+    const price = window.prompt('Update membership annual price', String(membership.price ?? 999));
+    if (price === null) return;
+    const res = await fetch('/api/admin/membership', {
+      method: 'PUT',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ price: Number(price) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.detail || 'Failed to update membership');
+      return;
+    }
+    await fetchPlansData();
+  }
+
+  async function updateMembershipBenefits() {
+    if (!membership) return;
+    const current = Array.isArray(membership.features) ? membership.features.join(', ') : '';
+    const value = window.prompt('Update membership benefits (comma separated)', current);
+    if (value === null) return;
+    const features = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const res = await fetch('/api/admin/membership', {
+      method: 'PUT',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ features }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.detail || 'Failed to update membership benefits');
+      return;
+    }
+    await fetchPlansData();
+  }
+
+  async function copyValue(value) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(String(value));
+    } catch {
+      // no-op fallback for unsupported clipboard API
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -208,12 +329,12 @@ export default function AdminPanel() {
             <h1 className="text-2xl font-semibold">Admin Panel</h1>
             <p className="text-sm text-muted-foreground">Manage platform users, photographers, analytics, and payments</p>
           </div>
-          <Button variant="outline" className="md:hidden" onClick={() => setSidebarOpen((v) => !v)}>
+          <Button variant="outline" className="xl:hidden" onClick={() => setSidebarOpen((v) => !v)}>
             <Menu className="mr-2 h-4 w-4" /> Menu
           </Button>
         </div>
-        <div className="grid gap-6 md:grid-cols-[260px,1fr]">
-          <Card className={`${sidebarOpen ? 'block' : 'hidden'} md:block`}>
+        <div className="grid gap-6 xl:grid-cols-[260px,1fr]">
+          <Card className={`${sidebarOpen ? 'block' : 'hidden'} xl:block`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Navigation</CardTitle>
             </CardHeader>
@@ -253,6 +374,7 @@ export default function AdminPanel() {
                   <Metric title="New Photographers (Month)" value={summary.new_photographers} />
                   <Metric title="New Customers (Month)" value={summary.new_customers} />
                   <Metric title="Subscriptions (Month)" value={summary.subscriptions_count} />
+                  <Metric title="Memberships Purchased (Month)" value={summary.memberships_count ?? 0} />
                   <Metric title="Shoots Booked (Month)" value={summary.total_shoots_booked} />
                 </div>
                 <Card>
@@ -457,6 +579,7 @@ export default function AdminPanel() {
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <Metric title="Current Balance" value={fmtCurrency(paymentsSummary.current_balance)} />
                     <Metric title="Revenue (Month)" value={fmtCurrency(paymentsSummary.total_revenue_month)} />
+                    <Metric title="Membership Revenue (Month)" value={fmtCurrency(paymentsSummary.membership_revenue_month)} />
                     <Metric title="Expenses (Month)" value={fmtCurrency(paymentsSummary.total_expenses_month)} />
                     <Metric title="Photoshoot Revenue" value={fmtCurrency(paymentsSummary.photoshoot_revenue_month)} />
                   </div>
@@ -465,21 +588,104 @@ export default function AdminPanel() {
                   <CardHeader><CardTitle>Payments Ledger</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {['subscriptions', 'photoshoots', 'expenses'].map((t) => (
+                      {['subscriptions', 'memberships', 'photoshoots', 'expenses'].map((t) => (
                         <Button key={t} variant={paymentTab === t ? 'default' : 'outline'} onClick={() => setPaymentTab(t)}>
                           {titleCase(t)}
                         </Button>
                       ))}
                     </div>
+                    {paymentTab === 'memberships' ? (
+                      <div className="grid gap-2 md:grid-cols-4">
+                        <Input
+                          placeholder="Search name/email"
+                          value={membershipFilters.search}
+                          onChange={(e) => setMembershipFilters((f) => ({ ...f, search: e.target.value }))}
+                        />
+                        <Select
+                          value={membershipFilters.status || 'all'}
+                          onValueChange={(v) => setMembershipFilters((f) => ({ ...f, status: v === 'all' ? '' : v }))}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                          <SelectContent
+                            position="popper"
+                            sideOffset={6}
+                            className="z-[90] rounded-lg border border-border bg-[#030711] shadow-lg"
+                            style={{ backgroundColor: '#030711' }}
+                          >
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="expired">Expired</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="date"
+                          value={membershipFilters.from}
+                          onChange={(e) => setMembershipFilters((f) => ({ ...f, from: e.target.value }))}
+                        />
+                        <Input
+                          type="date"
+                          value={membershipFilters.to}
+                          onChange={(e) => setMembershipFilters((f) => ({ ...f, to: e.target.value }))}
+                        />
+                      </div>
+                    ) : null}
                     <AdminTable
                       rows={paymentRows}
                       emptyState="No payment records found"
-                      columns={[
-                        { key: 'id', label: 'ID', render: (r) => <span className="font-mono text-xs">{r.id}</span> },
-                        { key: 'name', label: 'Name', render: (r) => getPaymentRowName(r, paymentTab) },
-                        { key: 'amount', label: 'Amount', render: (r) => fmtCurrency(r.amount || r.total_amount || 0) },
-                        { key: 'date', label: 'Date', render: (r) => (r.created_at ? new Date(r.created_at).toLocaleString() : '—') },
-                      ]}
+                      columns={paymentTab === 'memberships'
+                        ? [
+                            { key: 'user_name', label: 'User Name', render: (r) => r.user_name || '—' },
+                            { key: 'user_email', label: 'Email', render: (r) => r.user_email || '—' },
+                            { key: 'plan', label: 'Membership Plan', render: (r) => `${fmtCurrency(r.plan_price || 999)}/${r.plan_duration_days || 365} days` },
+                            { key: 'amount_paid', label: 'Amount Paid', render: (r) => fmtCurrency(r.amount_paid || 0) },
+                            { key: 'purchase_date', label: 'Purchase Date', render: (r) => (r.purchase_date ? new Date(r.purchase_date).toLocaleDateString() : '—') },
+                            { key: 'expiry_date', label: 'Expiry Date', render: (r) => (r.expiry_date ? new Date(r.expiry_date).toLocaleDateString() : '—') },
+                            {
+                              key: 'status',
+                              label: 'Status',
+                              render: (r) => (
+                                <span className={`rounded-full px-2 py-1 text-xs ${r.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                                  {r.status === 'active' ? 'Active' : 'Expired'}
+                                </span>
+                              ),
+                            },
+                          ]
+                        : paymentTab === 'subscriptions'
+                          ? [
+                              {
+                                key: 'id',
+                                label: 'ID',
+                                render: (r) => (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs">{r.id}</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(r.id)} title="Copy ID">
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ),
+                              },
+                              { key: 'email', label: 'Photographer Email', render: (r) => r.user_email || '—' },
+                              { key: 'name', label: 'Name', render: (r) => getPaymentRowName(r, paymentTab) },
+                              { key: 'amount', label: 'Amount', render: (r) => fmtCurrency(r.amount || r.total_amount || 0) },
+                              { key: 'date', label: 'Date', render: (r) => (r.created_at ? new Date(r.created_at).toLocaleString() : '—') },
+                            ]
+                          : [
+                              {
+                                key: 'id',
+                                label: 'ID',
+                                render: (r) => (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs">{r.id}</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(r.id)} title="Copy ID">
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ),
+                              },
+                              { key: 'name', label: 'Name', render: (r) => getPaymentRowName(r, paymentTab) },
+                              { key: 'amount', label: 'Amount', render: (r) => fmtCurrency(r.amount || r.total_amount || 0) },
+                              { key: 'date', label: 'Date', render: (r) => (r.created_at ? new Date(r.created_at).toLocaleString() : '—') },
+                            ]}
                     />
                   </CardContent>
                 </Card>
@@ -494,6 +700,118 @@ export default function AdminPanel() {
                     </form>
                   </CardContent>
                 </Card>
+              </div>
+            ) : null}
+
+            {tab === 'plans' ? (
+              <div className="space-y-4">
+                {planStats ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Metric title="Total Pro Users" value={planStats.proCount} />
+                    <Metric title="Total Premium Users" value={planStats.premiumCount} />
+                    <Metric title="Membership Users" value={membershipMetrics?.active_members ?? 0} />
+                    <Metric title="Free → Paid Conversion" value={`${planStats.conversionRate}%`} />
+                  </div>
+                ) : null}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Photographer Plans</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 xl:grid-cols-3">
+                      {plans.map((plan) => {
+                        const isPremium = plan.name === 'premium';
+                        const badgeClass =
+                          plan.name === 'free'
+                            ? 'border-zinc-600 bg-zinc-700/40 text-zinc-200'
+                            : plan.name === 'pro'
+                              ? 'border-blue-500/50 bg-blue-500/15 text-blue-300'
+                              : 'border-amber-500/50 bg-amber-500/15 text-amber-300';
+                        return (
+                          <Card
+                            key={plan.name}
+                            className={`rounded-2xl border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/40 ${
+                              isPremium ? 'ring-1 ring-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)]' : ''
+                            }`}
+                          >
+                            <CardHeader className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="capitalize">{plan.name}</CardTitle>
+                                <span className={`rounded-full border px-2.5 py-1 text-xs ${badgeClass}`}>
+                                  {titleCase(plan.name)}
+                                </span>
+                              </div>
+                              <p className="text-2xl font-semibold">
+                                {plan.price > 0 ? `${fmtCurrency(plan.price)}/month` : fmtCurrency(0)}
+                              </p>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <ul className="space-y-2 text-sm text-muted-foreground">
+                                <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Auctions {plan.name === 'free' ? 'locked' : 'enabled'}</li>
+                                <li className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-indigo-400" /> Bid limit: {plan.max_bids || 0}</li>
+                                <li className="flex items-center gap-2"><Crown className="h-4 w-4 text-amber-400" /> Priority weight: {plan.priority_weight || 0}</li>
+                                <li className="flex items-center gap-2"><Camera className="h-4 w-4 text-sky-400" /> Portfolio limit: {plan.portfolio_limit || 0}</li>
+                              </ul>
+                              <div className="flex gap-2 pt-1">
+                                <Button size="sm" variant="outline" onClick={() => editPlan(plan)}>Edit Plan</Button>
+                                <Button size="sm" onClick={() => togglePlan(plan)}>
+                                  {plan.is_active ? 'Set Inactive' : 'Set Active'}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {membership ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Membership Plan</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-xl font-semibold">{fmtCurrency(membership.price)} / year</p>
+                          <Button size="sm" onClick={async () => {
+                            const res = await fetch('/api/admin/membership', {
+                              method: 'PUT',
+                              headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ is_active: !membership.is_active }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) setError(data.detail || 'Failed to toggle membership');
+                            else await fetchPlansData();
+                          }}>
+                            {membership.is_active ? 'Set Inactive' : 'Set Active'}
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">Validity: {membership.duration_days} days</p>
+                        <ul className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+                          {(membership.features || []).map((feature) => (
+                            <li key={feature} className="rounded-lg border border-border/70 px-2 py-1">
+                              {String(feature).replaceAll('_', ' ')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <Metric title="Active Members" value={membershipMetrics?.active_members ?? 0} />
+                        <Metric title="Membership Revenue" value={fmtCurrency(membershipMetrics?.total_revenue ?? 0)} />
+                        <Metric title="Membership Status" value={membership.is_active ? 'Active' : 'Inactive'} />
+                        <Metric title="Duration (days)" value={membership.duration_days} />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={editMembershipPrice}>Edit Membership Price</Button>
+                        <Button onClick={updateMembershipBenefits}>Update Benefits</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+
               </div>
             ) : null}
           </section>

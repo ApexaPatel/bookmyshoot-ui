@@ -1,6 +1,6 @@
 # BookMyShoot Frontend
 
-React + Vite frontend for BookMyShoot. It provides public discovery flows for photographers and organizations, authenticated portfolio management for photographers, and a redesigned profile experience.
+React + Vite frontend for BookMyShoot. It provides public discovery flows for photographers and organizations, authenticated portfolio/billing management for photographers, membership + auctions for customers, quotations, and a full admin panel.
 
 ## Tech Stack
 - React
@@ -61,6 +61,27 @@ React + Vite frontend for BookMyShoot. It provides public discovery flows for ph
   - structured content cards
   - portfolio/settings-ready layout
 
+### Billing, membership, and auctions
+- Photographer billing page with simulated plan upgrade flow (Free/Pro/Premium)
+- Membership purchase page with simulated checkout and status display
+- Auction marketplace:
+  - customer auction creation (membership-gated)
+  - Pro/Premium photographer bidding
+  - bid comparison and winner selection
+- Plan-based restrictions and upgrade CTAs for ineligible users
+
+### Admin panel
+- Dashboard analytics cards + charts
+- User and photographer management (search/filter/pagination/role update/delete)
+- Payments section:
+  - Subscriptions
+  - Memberships (status/date filters)
+  - Photoshoots
+  - Expenses
+- Plans & Membership configuration:
+  - Free/Pro/Premium plan cards
+  - Membership config + metrics
+
 ## Main Routes
 ### Public
 - `/`
@@ -68,6 +89,7 @@ React + Vite frontend for BookMyShoot. It provides public discovery flows for ph
 - `/organizations`
 - `/organizations/:id`
 - `/photographer/:id`
+- `/quote`
 - `/login`
 - `/signup`
 
@@ -76,11 +98,15 @@ React + Vite frontend for BookMyShoot. It provides public discovery flows for ph
 - `/portfolio`
 - `/portfolio/new`
 - `/portfolio/:id`
+- `/billing` (photographer)
+- `/membership`
+- `/auction`
+- `/admin` (admin/staff/super_admin)
 
 ## Setup
 ### 1. Install
 ```bash
-cd /home/latika/Desktop/Demos/bookmyshoot/frontend
+cd bookmyshoot-ui
 npm install
 ```
 

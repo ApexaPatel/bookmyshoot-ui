@@ -35,6 +35,11 @@ export default function ProfileSidebar({ user, avatar }) {
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold text-white">{user.name}</p>
               <p className="truncate text-sm text-zinc-400">{user.email}</p>
+              {isPhotographer ? (
+                <span className="mt-2 inline-flex rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300">
+                  {(user?.photographerPlan || 'free').toUpperCase()} Plan
+                </span>
+              ) : null}
             </div>
           </div>
 
