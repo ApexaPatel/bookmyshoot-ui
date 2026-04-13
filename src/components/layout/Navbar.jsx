@@ -1,15 +1,7 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { User } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,15 +10,59 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
 
+/** Matches quotation `event_type` values and backend EventType enum */
+const EVENT_TYPES = [
+  ['wedding', 'Wedding'],
+  ['pre_wedding', 'Pre-wedding'],
+  ['birthday', 'Birthday'],
+  ['corporate', 'Corporate'],
+  ['inauguration', 'Inauguration'],
+  ['promotion', 'Promotion'],
+  ['influencer', 'Influencer'],
+  ['other', 'Other'],
+];
+
 const Navbar = () => {
+  const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const isAdminRole = ['super_admin', 'admin', 'staff'].includes(user?.role);
+  const isPhotographer = user?.role === 'photographer';
+  const [eventPanelOpen, setEventPanelOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const hrefForEventType = (typeId) => {
+    const params = new URLSearchParams();
+    params.set('event_type', typeId);
+    const q = search.trim() || typeId.replace(/_/g, ' ');
+    params.set('q', q);
+    return `/photographers?${params.toString()}`;
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const q = search.trim();
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    const suffix = params.toString();
+    navigate(suffix ? `/photographers?${suffix}` : '/photographers');
+    setEventPanelOpen(false);
+  };
+
+  useEffect(() => {
+    if (!eventPanelOpen) return;
+    const onEsc = (e) => {
+      if (e.key === 'Escape') setEventPanelOpen(false);
+    };
+    document.addEventListener('keydown', onEsc);
+    return () => document.removeEventListener('keydown', onEsc);
+  }, [eventPanelOpen]);
 
   const handleLogout = () => {
     logout();
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur overflow-x-hidden">
       <div className="container mx-auto flex h-16 items-center justify-between px-6 md:px-10 min-w-0">
         {/* Logo */}
@@ -36,60 +72,39 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8 min-w-0">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger className="bg-transparent text-white hover:bg-zinc-800">
-                  Events
-                </NavigationMenuTrigger>
-                <NavigationMenuContent className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-w-[200px]">
-                  <div className="grid gap-1 p-2">
-                    <NavigationMenuLink asChild>
-                      <Link
-                        to="/events/wedding"
-                        className="flex items-center px-4 py-2 rounded-md hover:bg-zinc-800 text-sm text-zinc-300 hover:text-white transition-colors"
-                      >
-                        👰 Wedding
-                      </Link>
-                    </NavigationMenuLink>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        to="/events/pre-wedding"
-                        className="flex items-center px-4 py-2 rounded-md hover:bg-zinc-800 text-sm text-zinc-300 hover:text-white transition-colors"
-                      >
-                        💑 Pre-Wedding
-                      </Link>
-                    </NavigationMenuLink>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        to="/events/portrait"
-                        className="flex items-center px-4 py-2 rounded-md hover:bg-zinc-800 text-sm text-zinc-300 hover:text-white transition-colors"
-                      >
-                        📸 Portrait
-                      </Link>
-                    </NavigationMenuLink>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        to="/events/corporate"
-                        className="flex items-center px-4 py-2 rounded-md hover:bg-zinc-800 text-sm text-zinc-300 hover:text-white transition-colors"
-                      >
-                        💼 Corporate
-                      </Link>
-                    </NavigationMenuLink>
-                  </div>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
+          <button
+            type="button"
+            onClick={() => setEventPanelOpen(true)}
+            className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0"
+          >
+            Event
+          </button>
           <Link to="/photographers" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Photographers
           </Link>
           <Link to="/organizations" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Organizations
           </Link>
-          <Link to="/quote" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
-            Get Quote
-          </Link>
+          {!isPhotographer ? (
+            <Link to="/quote" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
+              Get Quote
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/photographer/quotations"
+                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0"
+              >
+                Quote requests
+              </Link>
+              <Link
+                to="/photographer/bookings"
+                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0"
+              >
+                Bookings
+              </Link>
+            </>
+          )}
           <Link to="/auction" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Auctions
           </Link>
@@ -135,6 +150,20 @@ const Navbar = () => {
                 </DropdownMenuItem>
                 {user?.role === 'photographer' ? (
                   <DropdownMenuItem asChild>
+                    <Link to="/photographer/quotations" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Quote requests
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                {user?.role === 'photographer' ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/photographer/bookings" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      Bookings
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                {user?.role === 'photographer' ? (
+                  <DropdownMenuItem asChild>
                     <Link to="/portfolio" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
                       Portfolio
                     </Link>
@@ -147,7 +176,14 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
-                {!isAdminRole ? (
+                {!isAdminRole && !isPhotographer ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-bookings" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      My bookings
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                {!isAdminRole && !isPhotographer ? (
                   <DropdownMenuItem asChild>
                     <Link to="/membership" className="cursor-pointer focus:bg-zinc-800 focus:text-white">
                       Membership
@@ -190,6 +226,60 @@ const Navbar = () => {
         </div>
       </div>
     </header>
+    {eventPanelOpen ? (
+      <div className="fixed inset-0 top-16 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto md:max-h-none md:overflow-visible">
+        <button type="button" className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setEventPanelOpen(false)} />
+        <section className="relative z-10 w-full border-b border-zinc-800/80 bg-zinc-950/95 shadow-2xl md:max-h-[min(70vh,calc(100vh-5rem))] md:overflow-y-auto">
+          <div className="container mx-auto px-6 py-6 md:px-10">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Event types</h2>
+                <p className="text-sm text-zinc-400">Pick a shoot type or search to filter photographers</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEventPanelOpen(false)}
+                className="rounded-lg border border-zinc-700 p-2 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                aria-label="Close event panel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSearchSubmit} className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-sm text-zinc-300">
+                <Search className="h-4 w-4 shrink-0 text-zinc-500" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, city / location, or shoot type — press Enter"
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-zinc-500"
+                />
+              </label>
+              <Button type="submit" className="shrink-0 bg-indigo-600 hover:bg-indigo-700">
+                Search
+              </Button>
+            </form>
+
+            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">Browse by type</p>
+            <ul className="flex max-h-[50vh] flex-col gap-1 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2 md:max-h-none">
+              {EVENT_TYPES.map(([id, label]) => (
+                <li key={id}>
+                  <Link
+                    to={hrefForEventType(id)}
+                    onClick={() => setEventPanelOpen(false)}
+                    className="flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-200 transition hover:bg-zinc-800/90 hover:text-white"
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </div>
+    ) : null}
+    </>
   );
 };
 

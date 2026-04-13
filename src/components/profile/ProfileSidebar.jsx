@@ -1,4 +1,4 @@
-import { Building2, CreditCard, FolderKanban, Settings, UserCircle2 } from 'lucide-react';
+import { Building2, CalendarDays, CreditCard, FolderKanban, MessageSquare, Settings, UserCircle2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,8 +8,11 @@ export default function ProfileSidebar({ user, avatar }) {
   const isPhotographer = user?.role === 'photographer';
   const navItems = [
     { label: 'Profile', icon: UserCircle2, href: '/profile' },
+    ...(!isPhotographer ? [{ label: 'My bookings', icon: CalendarDays, href: '/my-bookings' }] : []),
     ...(isPhotographer
       ? [
+          { label: 'Quote requests', icon: MessageSquare, href: '/photographer/quotations' },
+          { label: 'Bookings', icon: CalendarDays, href: '/photographer/bookings' },
           { label: 'Portfolio', icon: FolderKanban, href: '/portfolio' },
           { label: 'Billing', icon: CreditCard, href: '/billing' },
         ]

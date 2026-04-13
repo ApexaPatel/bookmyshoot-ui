@@ -40,9 +40,13 @@ export default function Membership() {
   }, [activeMembership, user?.membershipExpiry]);
   const usagePercent = Math.max(0, Math.min(100, ((totalDays - remainingDays) / totalDays) * 100));
   const isAdminRole = ['super_admin', 'admin', 'staff'].includes(user?.role);
+  const isPhotographer = user?.role === 'photographer';
 
   if (isAdminRole) {
     return <Navigate to="/admin" replace />;
+  }
+  if (isPhotographer) {
+    return <Navigate to="/billing" replace />;
   }
 
   const activateMembership = async () => {

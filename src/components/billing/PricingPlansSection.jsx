@@ -67,14 +67,6 @@ export default function PricingPlansSection({
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="mt-0.5 h-4 w-4 text-emerald-400" />
-                  <span>
-                    {plan.monthlyLimit
-                      ? 'Future event dates are not allowed on this plan'
-                      : 'Future event dates are allowed'}
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Check className="mt-0.5 h-4 w-4 text-emerald-400" />
                   <span>{plan.auctionAccess ? 'Can view auctions and place bids' : 'No auction access (upgrade required)'}</span>
                 </div>
                 <div className="flex items-start gap-3">

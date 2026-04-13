@@ -19,6 +19,10 @@ import OrganizationsList from '@/pages/organizations/OrganizationsList';
 import OrganizationDetails from '@/pages/organizations/OrganizationDetails';
 import PhotographerDetails from '@/pages/photographer/PhotographerDetails';
 import QuoteSuggestions from '@/pages/quote/QuoteSuggestions';
+import PhotographerQuotationInbox from '@/pages/photographer/PhotographerQuotationInbox';
+import MyBookings from '@/pages/bookings/MyBookings';
+import PhotographerBookings from '@/pages/bookings/PhotographerBookings';
+import PhotographerOnlyRoute from '@/components/PhotographerOnlyRoute';
 import Membership from '@/pages/membership/Membership';
 import AuctionMarketplace from '@/pages/auction/AuctionMarketplace';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -46,6 +50,30 @@ function App() {
                 <Route path="/organizations/:id" element={<OrganizationDetails />} />
                 <Route path="/photographer/:id" element={<PhotographerDetails />} />
                 <Route path="/quote" element={<QuoteSuggestions />} />
+                <Route
+                  path="/photographer/quotations"
+                  element={
+                    <PhotographerOnlyRoute>
+                      <PhotographerQuotationInbox />
+                    </PhotographerOnlyRoute>
+                  }
+                />
+                <Route
+                  path="/photographer/bookings"
+                  element={
+                    <PhotographerOnlyRoute>
+                      <PhotographerBookings />
+                    </PhotographerOnlyRoute>
+                  }
+                />
+                <Route
+                  path="/my-bookings"
+                  element={
+                    <ProtectedRoute>
+                      <MyBookings />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/membership"
                   element={

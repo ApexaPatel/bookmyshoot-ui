@@ -176,6 +176,19 @@ export default function PhotographerDetails() {
                   {photographer.bio ? (
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-300">{photographer.bio}</p>
                   ) : null}
+                  <div className="mt-4">
+                    {user?.role === 'customer' ? (
+                      <Button asChild>
+                        <Link to={`/quote?photographer_id=${id}&photographer_name=${encodeURIComponent(photographer.name || 'Photographer')}`}>
+                          Request Quote / Book Photographer
+                        </Link>
+                      </Button>
+                    ) : !user ? (
+                      <Button asChild>
+                        <Link to={`/login`}>Login to Request Quote</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </section>

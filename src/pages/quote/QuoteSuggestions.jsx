@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { MapPin, Star, User } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +18,10 @@ function money(value) {
 
 export default function QuoteSuggestions() {
   const { user, token } = useAuth();
+  const [searchParams] = useSearchParams();
+  const preselectedPhotographerId = searchParams.get('photographer_id') || '';
+  const preselectedPhotographerName = searchParams.get('photographer_name') || 'Selected Photographer';
+  const [selectedPhotographer, setSelectedPhotographer] = useState(null);
   const [form, setForm] = useState({
     event_title: '',
     event_type: 'wedding',
@@ -37,6 +43,21 @@ export default function QuoteSuggestions() {
   const [quoteMessage, setQuoteMessage] = useState('');
   const [counterAmount, setCounterAmount] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
+
+  useEffect(() => {
+    if (!preselectedPhotographerId) {
+      setSelectedPhotographer(null);
+      return;
+    }
+    fetch(`/api/photographers/${preselectedPhotographerId}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'Failed to load photographer details');
+        return data.photographer || null;
+      })
+      .then((data) => setSelectedPhotographer(data))
+      .catch(() => setSelectedPhotographer(null));
+  }, [preselectedPhotographerId]);
 
   const toggleFeature = (feature) => {
     setForm((prev) => ({
@@ -114,6 +135,13 @@ export default function QuoteSuggestions() {
     await loadMyQuotes();
   };
 
+  const requestForPreselectedPhotographer = async () => {
+    if (!preselectedPhotographerId) {
+      throw new Error('Photographer is not selected');
+    }
+    await requestQuotation(preselectedPhotographerId);
+  };
+
   const respondQuotation = async () => {
     if (!selectedQuote || !token) return;
     const res = await fetch('/api/quotation/respond', {
@@ -183,6 +211,47 @@ export default function QuoteSuggestions() {
               <CardDescription>Get AI-assisted photographer suggestions based on event details and budget.</CardDescription>
             </CardHeader>
             <CardContent>
+              {preselectedPhotographerId ? (
+                <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-4">
+                  <p className="mb-3 text-xs uppercase tracking-wider text-primary">Selected Photographer</p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-14 w-14 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
+                      {selectedPhotographer?.profile_picture ? (
+                        <img
+                          src={selectedPhotographer.profile_picture}
+                          alt={selectedPhotographer?.name || preselectedPhotographerName}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                          <User className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-base font-semibold text-white">
+                        {selectedPhotographer?.name || decodeURIComponent(preselectedPhotographerName)}
+                      </p>
+                      {selectedPhotographer?.organization?.name ? (
+                        <p className="truncate text-sm text-zinc-300">{selectedPhotographer.organization.name}</p>
+                      ) : null}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+                        <span className="inline-flex items-center gap-1">
+                          <Star className="h-3.5 w-3.5 text-amber-400" />
+                          {Number(selectedPhotographer?.rating || 0).toFixed(1)}
+                        </span>
+                        {selectedPhotographer?.organization?.location ? (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {selectedPhotographer.organization.location}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <form className="space-y-4" onSubmit={onSubmit}>
                 <div className="space-y-2">
                   <Label>Event Title</Label>
@@ -265,6 +334,15 @@ export default function QuoteSuggestions() {
                 <Button className="w-full" type="submit" disabled={loading}>
                   {loading ? 'Getting quote...' : 'Get Quote'}
                 </Button>
+                {user?.role === 'customer' && preselectedPhotographerId ? (
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() => requestForPreselectedPhotographer().catch((err) => setError(err.message))}
+                  >
+                    Request Quote for {preselectedPhotographerName}
+                  </Button>
+                ) : null}
                 {token ? (
                   <Button
                     type="button"
@@ -301,6 +379,12 @@ export default function QuoteSuggestions() {
                     <CardDescription>Best-fit ranked by budget, relevance, ratings, and experience.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    {preselectedPhotographerId ? (
+                      <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary">
+                        Booking intent selected for <span className="font-semibold">{preselectedPhotographerName}</span>. You can
+                        request directly from the form button above.
+                      </div>
+                    ) : null}
                     {(result.suggested_photographers || []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">No recommendations found for this input.</p>
                     ) : (
