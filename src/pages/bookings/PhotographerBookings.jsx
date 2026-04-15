@@ -21,6 +21,7 @@ export default function PhotographerBookings() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState('');
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -41,6 +42,33 @@ export default function PhotographerBookings() {
       .catch((err) => setError(err.message || 'Failed to load'))
       .finally(() => setLoading(false));
   }, [token, load]);
+
+  const canPhotographerCancel = (row) => {
+    if (!row?.event_date) return false;
+    const days = (new Date(row.event_date) - new Date()) / (1000 * 60 * 60 * 24);
+    return days >= 7 && row.status !== 'cancelled';
+  };
+
+  const cancelBooking = async (bookingId) => {
+    if (!token) return;
+    if (!window.confirm('Cancel this booking?')) return;
+    setActionLoadingId(bookingId);
+    setError('');
+    try {
+      const res = await fetch('/api/booking/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Failed to cancel booking');
+      await load();
+    } catch (err) {
+      setError(err.message || 'Failed to cancel booking');
+    } finally {
+      setActionLoadingId('');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -85,6 +113,20 @@ export default function PhotographerBookings() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{row.status || '—'}</span>
                     </div>
                     <p className="mt-2 text-muted-foreground">₹{Number(row.final_price || 0).toLocaleString()}</p>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canPhotographerCancel(row) || actionLoadingId === row.id}
+                        onClick={() => cancelBooking(row.id)}
+                        title={!canPhotographerCancel(row) ? 'Only admin can cancel within 7 days of event.' : ''}
+                      >
+                        Cancel Booking
+                      </Button>
+                      {!canPhotographerCancel(row) ? (
+                        <p className="mt-1 text-xs text-muted-foreground">Only admin can cancel within 7 days.</p>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

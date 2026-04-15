@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import SearchInput from '@/components/admin/SearchInput';
 import FilterDropdown from '@/components/admin/FilterDropdown';
 import AdminTable from '@/components/admin/AdminTable';
@@ -82,8 +83,12 @@ export default function AdminPanel() {
   const [membership, setMembership] = useState(null);
   const [membershipMetrics, setMembershipMetrics] = useState(null);
   const [planStats, setPlanStats] = useState(null);
+  const [subscriptionRevenueStats, setSubscriptionRevenueStats] = useState(null);
+  const [userDetail, setUserDetail] = useState(null);
+  const [photographerDetail, setPhotographerDetail] = useState(null);
+  const [detailTab, setDetailTab] = useState('info');
 
-  const [userFilters, setUserFilters] = useState({ search: '', role: '', page: 1, limit: 10 });
+  const [userFilters, setUserFilters] = useState({ search: '', role: 'customer', page: 1, limit: 10 });
   const [photographerFilters, setPhotographerFilters] = useState({ search: '', plan: '', page: 1, limit: 10 });
 
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
@@ -96,10 +101,11 @@ export default function AdminPanel() {
   }, [authHeaders]);
 
   const fetchPlansData = useCallback(async () => {
-    const [plansResp, membershipResp, planStatsResp] = await Promise.all([
+    const [plansResp, membershipResp, planStatsResp, subscriptionRevenueResp] = await Promise.all([
       apiGet('/api/admin/plans'),
       apiGet('/api/admin/membership'),
       apiGet('/api/admin/photographers/plan-stats'),
+      apiGet('/api/admin/subscriptions/revenue-stats'),
     ]);
     const rawPlans = Array.isArray(plansResp.items) ? plansResp.items : [];
     const byName = new Map();
@@ -118,6 +124,7 @@ export default function AdminPanel() {
       premiumCount: Number(planStatsResp.premium || 0),
       conversionRate: Number(planStatsResp.conversion_rate || 0).toFixed(1),
     });
+    setSubscriptionRevenueStats(subscriptionRevenueResp || null);
   }, [apiGet]);
 
   useEffect(() => {
@@ -320,6 +327,26 @@ export default function AdminPanel() {
     }
   }
 
+  async function openUserDetails(userId) {
+    try {
+      const data = await apiGet(`/api/admin/users/${userId}/details`);
+      setUserDetail(data);
+      setDetailTab('info');
+    } catch (e) {
+      setError(e.message || 'Failed to load user details');
+    }
+  }
+
+  async function openPhotographerDetails(userId) {
+    try {
+      const data = await apiGet(`/api/admin/photographers/${userId}/details`);
+      setPhotographerDetail(data);
+      setDetailTab('info');
+    } catch (e) {
+      setError(e.message || 'Failed to load photographer details');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -498,16 +525,19 @@ export default function AdminPanel() {
                         key: 'actions',
                         label: 'Actions',
                         render: (u) => (
-                          <ConfirmDialog
-                            title="Delete user?"
-                            description={`This will hide ${u.full_name} from active lists.`}
-                            onConfirm={() => softDeleteUser('users', u.id)}
-                            trigger={
-                              <Button size="sm" variant="outline" className="gap-1">
-                                <Trash2 className="h-3.5 w-3.5" /> Delete
-                              </Button>
-                            }
-                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => openUserDetails(u.id)}>View</Button>
+                            <ConfirmDialog
+                              title="Delete user?"
+                              description={`This will hide ${u.full_name} from active lists.`}
+                              onConfirm={() => softDeleteUser('users', u.id)}
+                              trigger={
+                                <Button size="sm" variant="outline" className="gap-1">
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                                </Button>
+                              }
+                            />
+                          </div>
                         ),
                       },
                     ]}
@@ -554,16 +584,19 @@ export default function AdminPanel() {
                         key: 'action',
                         label: 'Action',
                         render: (p) => (
-                          <ConfirmDialog
-                            title="Delete photographer?"
-                            description={`This will hide ${p.full_name} from active lists.`}
-                            onConfirm={() => softDeleteUser('photographers', p.id)}
-                            trigger={
-                              <Button size="sm" variant="outline" className="gap-1">
-                                <Trash2 className="h-3.5 w-3.5" /> Delete
-                              </Button>
-                            }
-                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => openPhotographerDetails(p.id)}>View</Button>
+                            <ConfirmDialog
+                              title="Delete photographer?"
+                              description={`This will hide ${p.full_name} from active lists.`}
+                              onConfirm={() => softDeleteUser('photographers', p.id)}
+                              trigger={
+                                <Button size="sm" variant="outline" className="gap-1">
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                                </Button>
+                              }
+                            />
+                          </div>
                         ),
                       },
                     ]}
@@ -711,6 +744,11 @@ export default function AdminPanel() {
                     <Metric title="Total Premium Users" value={planStats.premiumCount} />
                     <Metric title="Membership Users" value={membershipMetrics?.active_members ?? 0} />
                     <Metric title="Free → Paid Conversion" value={`${planStats.conversionRate}%`} />
+                    <Metric title="Subscription Revenue (Total)" value={fmtCurrency(subscriptionRevenueStats?.total_amount ?? 0)} />
+                    <Metric title="Total Plan Purchases" value={subscriptionRevenueStats?.total_purchases ?? 0} />
+                    <Metric title="Photographers Purchased" value={subscriptionRevenueStats?.unique_photographers ?? 0} />
+                    <Metric title="Pro Revenue" value={fmtCurrency(subscriptionRevenueStats?.by_plan?.pro?.amount ?? 0)} />
+                    <Metric title="Premium Revenue" value={fmtCurrency(subscriptionRevenueStats?.by_plan?.premium?.amount ?? 0)} />
                   </div>
                 ) : null}
 
@@ -818,6 +856,230 @@ export default function AdminPanel() {
         </div>
       </main>
       <Footer />
+
+      <Dialog open={Boolean(userDetail)} onOpenChange={(open) => { if (!open) setUserDetail(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          {userDetail ? (
+            <div className="space-y-4 text-sm">
+              <div className="flex flex-wrap gap-2">
+                {['info', 'auctions', 'bookings', 'quotations'].map((t) => (
+                  <Button key={t} size="sm" variant={detailTab === t ? 'default' : 'outline'} onClick={() => setDetailTab(t)}>
+                    {titleCase(t)}
+                  </Button>
+                ))}
+              </div>
+              {detailTab === 'info' ? (
+                <div className="rounded-lg border border-border p-3">
+                  <p><strong>Name:</strong> {userDetail.user?.name || '—'}</p>
+                  <p><strong>Email:</strong> {userDetail.user?.email || '—'}</p>
+                  <p className="flex flex-wrap items-center gap-2">
+                    <strong>User ID:</strong>
+                    <span className="font-mono text-xs">{userDetail.user?.id || '—'}</span>
+                    {userDetail.user?.id ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => copyValue(userDetail.user.id)}
+                        title="Copy User ID"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
+                  </p>
+                  <p><strong>Membership:</strong> {userDetail.user?.membership_active ? 'Active' : 'Not active'}</p>
+                </div>
+              ) : null}
+              {detailTab === 'auctions' ? (
+                userDetail.user?.membership_active ? (
+                  <div className="space-y-2">
+                    {(userDetail.auctions || []).length === 0 ? <p className="text-muted-foreground">No auctions found.</p> : null}
+                    {(userDetail.auctions || []).map((a) => (
+                      <div key={a.id} className="rounded-lg border border-border p-3">
+                        <p className="font-medium">{a.title || 'Auction'}</p>
+                        <p className="text-muted-foreground">Status: {a.status} • Event: {formatLongDate(a.event_date)}</p>
+                        <p><strong>Selected Photographer:</strong> {a.selected_photographer_name || 'Not selected yet'}</p>
+                        <p><strong>Selected Bid Price:</strong> {a.selected_price ? fmtCurrency(a.selected_price) : '—'}</p>
+                        <p><strong>Final Booking Price:</strong> {a.final_price ? fmtCurrency(a.final_price) : '—'}</p>
+                        <p>
+                          <strong>Booking Confirmed:</strong>{' '}
+                          {a.booking_confirmed ? `Yes (${a.booking_status || 'confirmed'})` : 'No'}
+                        </p>
+                        <div className="mt-2 rounded border border-border/70 p-2">
+                          <p className="mb-1 font-medium">Applied Bids</p>
+                          {(a.bids || []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No bids applied.</p>
+                          ) : (
+                            (a.bids || []).map((bid) => (
+                              <div key={bid.id} className="mb-1 text-xs text-muted-foreground">
+                                • {bid.photographer_name || 'Photographer'} — {fmtCurrency(bid.amount || 0)}
+                                {bid.is_selected ? ' (selected)' : ''}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Not a membership user.</p>
+                )
+              ) : null}
+              {detailTab === 'bookings' ? (
+                <div className="space-y-2">
+                  {(userDetail.bookings || []).length === 0 ? <p className="text-muted-foreground">No bookings found.</p> : null}
+                  {(userDetail.bookings || []).map((b) => (
+                    <div key={b.id} className="rounded-lg border border-border p-3">
+                      <p><strong>Event Date:</strong> {formatLongDate(b.event_date)}</p>
+                      <p><strong>Photographer:</strong> {b.photographer_name || '—'}</p>
+                      <p className="flex flex-wrap items-center gap-2">
+                        <strong>Photographer ID:</strong>
+                        <span className="font-mono text-xs">{b.photographer_id || '—'}</span>
+                        {b.photographer_id ? (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => copyValue(b.photographer_id)}
+                            title="Copy Photographer ID"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {detailTab === 'quotations' ? (
+                <div className="space-y-2">
+                  {(userDetail.quotations || []).length === 0 ? <p className="text-muted-foreground">No quotations found.</p> : null}
+                  {(userDetail.quotations || []).map((q) => (
+                    <div key={q.id} className="rounded-lg border border-border p-3">
+                      <p><strong>Photographer:</strong> {q.photographer_name || '—'}</p>
+                      <p><strong>Initial Amount:</strong> {fmtCurrency(q.initial_amount || 0)}</p>
+                      <p><strong>Negotiated Amount:</strong> {fmtCurrency(q.negotiated_amount || 0)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(photographerDetail)} onOpenChange={(open) => { if (!open) setPhotographerDetail(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Photographer Details</DialogTitle>
+          </DialogHeader>
+          {photographerDetail ? (
+            <div className="space-y-4 text-sm">
+              <div className="flex flex-wrap gap-2">
+                {['info', 'bookings'].map((t) => (
+                  <Button key={t} size="sm" variant={detailTab === t ? 'default' : 'outline'} onClick={() => setDetailTab(t)}>
+                    {titleCase(t)}
+                  </Button>
+                ))}
+              </div>
+              {detailTab === 'info' ? (
+                <div className="rounded-lg border border-border p-3">
+                  <p><strong>Name:</strong> {photographerDetail.photographer?.name || '—'}</p>
+                  <p><strong>Email:</strong> {photographerDetail.photographer?.email || '—'}</p>
+                  <p className="flex flex-wrap items-center gap-2">
+                    <strong>Photographer ID:</strong>
+                    <span className="font-mono text-xs">{photographerDetail.photographer?.id || '—'}</span>
+                    {photographerDetail.photographer?.id ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => copyValue(photographerDetail.photographer.id)}
+                        title="Copy Photographer ID"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
+                  </p>
+                </div>
+              ) : null}
+              {detailTab === 'bookings' ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="mb-2 font-semibold">Upcoming</p>
+                    {(photographerDetail.upcoming_bookings || []).length === 0 ? <p className="text-muted-foreground">No upcoming bookings.</p> : null}
+                    {(photographerDetail.upcoming_bookings || []).map((b) => (
+                      <div key={b.id} className="mb-2 rounded border border-border p-2">
+                        <p className="font-medium">{b.event_title || 'Booking Event'}</p>
+                        <p className="text-muted-foreground">
+                          {(b.event_type || 'event').replaceAll('_', ' ')} • {formatLongDate(b.event_date)}
+                        </p>
+                        <p><strong>Customer:</strong> {b.user_name || 'Customer'}</p>
+                        <p><strong>Location:</strong> {b.location || '—'}</p>
+                        <p><strong>Status:</strong> {b.status || '—'}</p>
+                        <p><strong>Payment:</strong> {(b.payment_status || 'pending').toUpperCase()}</p>
+                        <p><strong>Final Price:</strong> {fmtCurrency(b.final_price || 0)}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-2">
+                          <strong>Booking ID:</strong>
+                          <span className="font-mono text-xs">{b.id}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(b.id)} title="Copy Booking ID">
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </p>
+                        <p className="flex flex-wrap items-center gap-2">
+                          <strong>Customer ID:</strong>
+                          <span className="font-mono text-xs">{b.user_id || '—'}</span>
+                          {b.user_id ? (
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(b.user_id)} title="Copy Customer ID">
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="mb-2 font-semibold">Past</p>
+                    {(photographerDetail.past_bookings || []).length === 0 ? <p className="text-muted-foreground">No past bookings.</p> : null}
+                    {(photographerDetail.past_bookings || []).map((b) => (
+                      <div key={b.id} className="mb-2 rounded border border-border p-2">
+                        <p className="font-medium">{b.event_title || 'Booking Event'}</p>
+                        <p className="text-muted-foreground">
+                          {(b.event_type || 'event').replaceAll('_', ' ')} • {formatLongDate(b.event_date)}
+                        </p>
+                        <p><strong>Customer:</strong> {b.user_name || 'Customer'}</p>
+                        <p><strong>Location:</strong> {b.location || '—'}</p>
+                        <p><strong>Status:</strong> {b.status || '—'}</p>
+                        <p><strong>Payment:</strong> {(b.payment_status || 'pending').toUpperCase()}</p>
+                        <p><strong>Final Price:</strong> {fmtCurrency(b.final_price || 0)}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-2">
+                          <strong>Booking ID:</strong>
+                          <span className="font-mono text-xs">{b.id}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(b.id)} title="Copy Booking ID">
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </p>
+                        <p className="flex flex-wrap items-center gap-2">
+                          <strong>Customer ID:</strong>
+                          <span className="font-mono text-xs">{b.user_id || '—'}</span>
+                          {b.user_id ? (
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyValue(b.user_id)} title="Copy Customer ID">
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -193,6 +193,15 @@ export default function AuctionMarketplace() {
     }
   };
 
+  const canCustomerCancelAuction = (auction) => {
+    if (!canCreateAuction) return false;
+    if (auction.status !== 'open') return false;
+    if (auction.selected_photographer_id) return false;
+    if (!auction.created_at) return false;
+    const days = (new Date() - new Date(auction.created_at)) / (1000 * 60 * 60 * 24);
+    return days <= 7;
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -333,42 +342,77 @@ export default function AuctionMarketplace() {
                             View Bids
                           </Button>
                           {auction.status === 'open' ? (
-                            <Button size="sm" variant="outline" onClick={() => cancelAuction(auction.id)} disabled={loading}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => cancelAuction(auction.id)}
+                              disabled={loading || !canCustomerCancelAuction(auction)}
+                              title={!canCustomerCancelAuction(auction) ? 'You can cancel only within 7 days and before photographer selection.' : ''}
+                            >
                               Cancel
                             </Button>
+                          ) : null}
+                          {auction.status === 'open' && !canCustomerCancelAuction(auction) ? (
+                            <p className="text-xs text-muted-foreground">
+                              Cancellation allowed only within 7 days and before selecting photographer.
+                            </p>
                           ) : null}
                         </>
                       ) : (
                         <>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="Bid amount"
-                            className="w-[140px]"
-                            value={bidInputs[auction.id]?.amount || ''}
-                            onChange={(e) =>
-                              setBidInputs((prev) => ({
-                                ...prev,
-                                [auction.id]: { ...(prev[auction.id] || {}), amount: e.target.value },
-                              }))
-                            }
-                            disabled={!canBid}
-                          />
-                          <Input
-                            placeholder="Message"
-                            className="w-[240px]"
-                            value={bidInputs[auction.id]?.message || ''}
-                            onChange={(e) =>
-                              setBidInputs((prev) => ({
-                                ...prev,
-                                [auction.id]: { ...(prev[auction.id] || {}), message: e.target.value },
-                              }))
-                            }
-                            disabled={!canBid}
-                          />
-                          <Button size="sm" onClick={() => placeBid(auction.id)} disabled={!canBid || loading}>
-                            Place Bid
-                          </Button>
+                          <div className="w-full rounded-xl border border-zinc-800 bg-[#111827] p-5">
+                            <p className="mb-4 text-sm font-semibold text-white">Place Your Bid</p>
+                            <label className="mb-2 block text-sm text-zinc-300">Bid Amount (₹)</label>
+                            <div className="relative">
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">₹</span>
+                              <Input
+                                type="number"
+                                min="0"
+                                placeholder="Enter your price"
+                                className="w-full border-zinc-700 bg-zinc-900 pl-8 pr-4 py-3 text-white focus-visible:ring-indigo-500"
+                                value={bidInputs[auction.id]?.amount || ''}
+                                onChange={(e) =>
+                                  setBidInputs((prev) => ({
+                                    ...prev,
+                                    [auction.id]: { ...(prev[auction.id] || {}), amount: e.target.value },
+                                  }))
+                                }
+                                disabled={!canBid}
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-zinc-400">
+                              Suggested range:{' '}
+                              {auction.budget
+                                ? `${money(Number(auction.budget) * 0.8)} - ${money(Number(auction.budget) * 1.2)}`
+                                : '₹5,000 - ₹15,000'}
+                            </p>
+
+                            <label className="mb-2 mt-4 block text-sm text-zinc-300">Message (optional)</label>
+                            <textarea
+                              rows={3}
+                              placeholder="Add a short message to impress the client..."
+                              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+                              value={bidInputs[auction.id]?.message || ''}
+                              onChange={(e) =>
+                                setBidInputs((prev) => ({
+                                  ...prev,
+                                  [auction.id]: { ...(prev[auction.id] || {}), message: e.target.value },
+                                }))
+                              }
+                              disabled={!canBid}
+                            />
+
+                            <Button
+                              className="mt-4 w-full bg-blue-600 py-3 font-semibold text-white shadow-md hover:bg-blue-700"
+                              onClick={() => placeBid(auction.id)}
+                              disabled={!canBid || loading}
+                            >
+                              🚀 Place Your Bid
+                            </Button>
+                            <p className="mt-2 text-center text-xs text-zinc-500">
+                              Your bid is visible to the customer. You can update it later.
+                            </p>
+                          </div>
                         </>
                       )}
                     </div>

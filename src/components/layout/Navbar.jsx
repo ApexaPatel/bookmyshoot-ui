@@ -108,9 +108,6 @@ const Navbar = () => {
           <Link to="/auction" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
             Auctions
           </Link>
-          <Link to="/about" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0">
-            About
-          </Link>
         </nav>
 
         {/* Right: Auth or User menu */}

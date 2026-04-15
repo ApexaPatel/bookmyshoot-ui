@@ -6,9 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 export default function ProfileSidebar({ user, avatar }) {
   const location = useLocation();
   const isPhotographer = user?.role === 'photographer';
+  const isAdminRole = ['super_admin', 'admin', 'staff'].includes(user?.role);
   const navItems = [
     { label: 'Profile', icon: UserCircle2, href: '/profile' },
-    ...(!isPhotographer ? [{ label: 'My bookings', icon: CalendarDays, href: '/my-bookings' }] : []),
+    ...(!isPhotographer && !isAdminRole ? [{ label: 'My bookings', icon: CalendarDays, href: '/my-bookings' }] : []),
     ...(isPhotographer
       ? [
           { label: 'Quote requests', icon: MessageSquare, href: '/photographer/quotations' },

@@ -16,6 +16,22 @@ function money(value) {
   return `₹${Number(value || 0).toLocaleString()}`;
 }
 
+function calculateDurationHours(start, end) {
+  if (!start || !end) return 0;
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return 0;
+  return Number(((e - s) / (1000 * 60 * 60)).toFixed(2));
+}
+
+function isSameDay(start, end) {
+  if (!start || !end) return false;
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return false;
+  return s.toDateString() === e.toDateString();
+}
+
 export default function QuoteSuggestions() {
   const { user, token } = useAuth();
   const [searchParams] = useSearchParams();
@@ -26,8 +42,8 @@ export default function QuoteSuggestions() {
     event_title: '',
     event_type: 'wedding',
     location: '',
-    event_date: '',
-    duration: 8,
+    event_start_date: '',
+    event_end_date: '',
     description: '',
     budget_min: '',
     budget_max: '',
@@ -35,6 +51,7 @@ export default function QuoteSuggestions() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [result, setResult] = useState(null);
   const [myQuotes, setMyQuotes] = useState([]);
   const [selectedQuote, setSelectedQuote] = useState(null);
@@ -43,6 +60,7 @@ export default function QuoteSuggestions() {
   const [quoteMessage, setQuoteMessage] = useState('');
   const [counterAmount, setCounterAmount] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     if (!preselectedPhotographerId) {
@@ -77,7 +95,7 @@ export default function QuoteSuggestions() {
       const payload = {
         event_type: form.event_type,
         location: form.location.trim(),
-        duration: Number(form.duration),
+        duration: Math.max(1, calculateDurationHours(form.event_start_date, form.event_end_date) || 1),
         features: form.features,
       };
       if (form.budget_min) payload.budget_min = Number(form.budget_min);
@@ -102,8 +120,18 @@ export default function QuoteSuggestions() {
     const res = await fetch('/api/quotation/mine', { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || 'Failed to load quotations');
-    setMyQuotes(data.items || []);
+    const items = data.items || [];
+    setMyQuotes(items);
+    if (selectedQuote?.id) {
+      const updated = items.find((q) => q.id === selectedQuote.id);
+      if (updated) setSelectedQuote(updated);
+    }
   };
+
+  useEffect(() => {
+    if (!token) return;
+    loadMyQuotes().catch((err) => setError(err.message || 'Failed to load quotations'));
+  }, [token]);
 
   const loadMessages = async (quotationId) => {
     if (!quotationId || !token) return;
@@ -115,13 +143,18 @@ export default function QuoteSuggestions() {
 
   const requestQuotation = async (photographerId) => {
     if (!token) return;
+    const durationHours = calculateDurationHours(form.event_start_date, form.event_end_date);
+    if (!form.event_start_date || !form.event_end_date || durationHours <= 0) {
+      throw new Error('Please provide valid event start and end date/time');
+    }
     const payload = {
       photographer_id: photographerId,
       event_title: form.event_title || `${form.event_type} shoot`,
       event_type: form.event_type,
       location: form.location,
-      event_date: new Date(form.event_date).toISOString(),
-      duration_hours: Number(form.duration),
+      event_start_date: new Date(form.event_start_date).toISOString(),
+      event_end_date: new Date(form.event_end_date).toISOString(),
+      duration_hours: durationHours,
       description: form.description || null,
       budget: form.budget_max ? Number(form.budget_max) : null,
     };
@@ -182,22 +215,34 @@ export default function QuoteSuggestions() {
   };
 
   const confirmBooking = async () => {
-    if (!selectedQuote || !token) return;
-    const res = await fetch('/api/booking/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ quotation_id: selectedQuote.id, pay_stage: 'during_booking' }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || 'Failed to confirm booking');
-    const payRes = await fetch('/api/payment/initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ booking_id: data.booking_id, simulate_success: true }),
-    });
-    const payData = await payRes.json().catch(() => ({}));
-    if (!payRes.ok) throw new Error(payData.detail || 'Failed to initiate payment');
-    await loadMyQuotes();
+    if (!selectedQuote || !token || bookingLoading) return;
+    if (selectedQuote.status === 'booked') {
+      setSuccess('Booking already confirmed for this quotation.');
+      return;
+    }
+    setBookingLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch('/api/booking/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quotation_id: selectedQuote.id, pay_stage: 'during_booking' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Failed to confirm booking');
+      const payRes = await fetch('/api/payment/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_id: data.booking_id, simulate_success: true }),
+      });
+      const payData = await payRes.json().catch(() => ({}));
+      if (!payRes.ok) throw new Error(payData.detail || 'Failed to initiate payment');
+      setSuccess('Booking confirmed and payment successful.');
+      await loadMyQuotes();
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   return (
@@ -284,11 +329,20 @@ export default function QuoteSuggestions() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Event Date</Label>
+                  <Label>Event Start Date</Label>
                   <Input
                     type="datetime-local"
-                    value={form.event_date}
-                    onChange={(e) => setForm((p) => ({ ...p, event_date: e.target.value }))}
+                    value={form.event_start_date}
+                    onChange={(e) => setForm((p) => ({ ...p, event_start_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Event End Date</Label>
+                  <Input
+                    type="datetime-local"
+                    value={form.event_end_date}
+                    onChange={(e) => setForm((p) => ({ ...p, event_end_date: e.target.value }))}
                     required
                   />
                 </div>
@@ -296,11 +350,17 @@ export default function QuoteSuggestions() {
                   <Label>Duration (hours)</Label>
                   <Input
                     type="number"
-                    min="1"
-                    value={form.duration}
-                    onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
-                    required
+                    min="0"
+                    value={calculateDurationHours(form.event_start_date, form.event_end_date)}
+                    readOnly
                   />
+                  {form.event_start_date && form.event_end_date ? (
+                    <p className="text-xs text-muted-foreground">
+                      {isSameDay(form.event_start_date, form.event_end_date)
+                        ? 'Same day event: duration is calculated in hours.'
+                        : 'Multi-day event: total hours are calculated from start and end.'}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -359,6 +419,7 @@ export default function QuoteSuggestions() {
 
           <div className="space-y-4">
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {success ? <p className="text-sm text-emerald-500">{success}</p> : null}
             {result ? (
               <>
                 <Card>
@@ -419,13 +480,7 @@ export default function QuoteSuggestions() {
                   </CardContent>
                 </Card>
               </>
-            ) : (
-              <Card>
-                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Fill in event details and click "Get Quote" to see pricing and recommendations.
-                </CardContent>
-              </Card>
-            )}
+            ) : null}
 
             {token ? (
               <Card>
@@ -448,6 +503,12 @@ export default function QuoteSuggestions() {
                         }}
                       >
                         <p className="font-medium">{q.event_details?.title || 'Quotation'}</p>
+                        {user?.role === 'customer' && q.photographer_name ? (
+                          <p className="text-xs text-muted-foreground">Photographer: {q.photographer_name}</p>
+                        ) : null}
+                        {user?.role === 'photographer' && q.customer_name ? (
+                          <p className="text-xs text-muted-foreground">Customer: {q.customer_name}</p>
+                        ) : null}
                         <p className="text-xs text-muted-foreground">
                           Status: {q.status} {q.latest_amount ? `• ₹${q.latest_amount}` : ''}
                         </p>
@@ -456,7 +517,22 @@ export default function QuoteSuggestions() {
                   )}
                   {selectedQuote ? (
                     <div className="space-y-3 rounded-lg border border-border p-3">
-                      <p className="text-sm font-medium">Discussion</p>
+                      {selectedQuote.status === 'booked' ? (
+                        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-500">
+                          Booking confirmed. Payment completed for this quotation.
+                        </div>
+                      ) : null}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">Discussion</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadMessages(selectedQuote.id).catch((err) => setError(err.message))}
+                        >
+                          Refresh
+                        </Button>
+                      </div>
                       <div className="max-h-48 space-y-2 overflow-y-auto">
                         {(messages || []).map((m) => (
                           <div key={m.id} className="rounded-md bg-muted/40 p-2 text-sm">
@@ -483,9 +559,31 @@ export default function QuoteSuggestions() {
                         <div className="grid gap-2 md:grid-cols-3">
                           <Input placeholder="Counter amount" type="number" min="1" value={counterAmount} onChange={(e) => setCounterAmount(e.target.value)} />
                           <Input placeholder="Counter message" value={counterMessage} onChange={(e) => setCounterMessage(e.target.value)} className="md:col-span-2" />
-                          <Button variant="outline" onClick={() => reviseOrAccept('counter').catch((err) => setError(err.message))} className="md:col-span-2">Send Counter</Button>
-                          <Button onClick={() => reviseOrAccept('accept').catch((err) => setError(err.message))}>Accept Quote</Button>
-                          <Button onClick={() => confirmBooking().catch((err) => setError(err.message))} className="md:col-span-3">Confirm Booking & Pay</Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => reviseOrAccept('counter').catch((err) => setError(err.message))}
+                            className="md:col-span-2"
+                            disabled={selectedQuote.status === 'booked' || bookingLoading}
+                          >
+                            Send Counter
+                          </Button>
+                          <Button
+                            onClick={() => reviseOrAccept('accept').catch((err) => setError(err.message))}
+                            disabled={selectedQuote.status === 'booked' || bookingLoading}
+                          >
+                            Accept Quote
+                          </Button>
+                          <Button
+                            onClick={() => confirmBooking().catch((err) => setError(err.message))}
+                            className="md:col-span-3"
+                            disabled={selectedQuote.status === 'booked' || bookingLoading}
+                          >
+                            {selectedQuote.status === 'booked'
+                              ? 'Booking Confirmed'
+                              : bookingLoading
+                                ? 'Processing Payment...'
+                                : 'Confirm Booking & Pay'}
+                          </Button>
                         </div>
                       ) : null}
                     </div>
