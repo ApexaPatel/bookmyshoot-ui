@@ -10,11 +10,14 @@ import { useAuth } from '@/context/AuthContext';
 import { getPhotographerPlanRules } from '@/lib/photographerPlans';
 
 export default function PortfolioList() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, isAuthenticated, updateVisibility } = useAuth();
   const [portfolios, setPortfolios] = useState([]);
   const [planInfo, setPlanInfo] = useState(null);
   const [error, setError] = useState('');
   const [pageLoading, setPageLoading] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityMessage, setVisibilityMessage] = useState('');
+  const [visibilityError, setVisibilityError] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'photographer') return;
@@ -58,6 +61,24 @@ export default function PortfolioList() {
       ? Math.min(100, (effectivePlan.photoshoots_used / effectivePlan.max_photoshoots) * 100)
       : 0;
 
+  const handleVisibilityChange = async (nextVisibility) => {
+    setVisibilityMessage('');
+    setVisibilityError('');
+    setVisibilitySaving(true);
+    try {
+      await updateVisibility(nextVisibility);
+      if (nextVisibility === 'public') {
+        setVisibilityMessage('Your profile is now visible to customers.');
+      } else {
+        setVisibilityMessage('Your profile is hidden from explore page.');
+      }
+    } catch (err) {
+      setVisibilityError(err?.message || 'Failed to update visibility');
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
+
   if (!loading && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -74,6 +95,35 @@ export default function PortfolioList() {
           <div>
             <h1 className="text-3xl font-bold text-white">Portfolio</h1>
             <p className="mt-2 text-zinc-400">Manage your photoshoots, galleries, and thumbnail highlights.</p>
+            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <p className="text-sm font-medium text-zinc-200">Profile Visibility</p>
+              <p className="mt-1 text-xs text-zinc-400">Private profiles are hidden from explore/search results.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={user?.visibility === 'private' ? 'default' : 'outline'}
+                  className={user?.visibility === 'private' ? 'bg-zinc-700 text-white hover:bg-zinc-600' : 'border-zinc-700 text-zinc-200 hover:bg-zinc-800'}
+                  disabled={visibilitySaving}
+                  onClick={() => handleVisibilityChange('private')}
+                >
+                  Private
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={user?.visibility === 'public' ? 'default' : 'outline'}
+                  className={user?.visibility === 'public' ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'border-zinc-700 text-zinc-200 hover:bg-zinc-800'}
+                  disabled={visibilitySaving}
+                  onClick={() => handleVisibilityChange('public')}
+                >
+                  Public
+                </Button>
+                {visibilitySaving ? <span className="text-xs text-zinc-400">Updating...</span> : null}
+              </div>
+              {visibilityMessage ? <p className="mt-2 text-xs text-emerald-400">{visibilityMessage}</p> : null}
+              {visibilityError ? <p className="mt-2 text-xs text-red-400">{visibilityError}</p> : null}
+            </div>
             <p className="mt-3 text-sm text-zinc-300">
               {effectivePlan.name} plan
               {effectivePlan.price_inr > 0 ? (

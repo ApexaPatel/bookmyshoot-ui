@@ -347,6 +347,21 @@ export default function AdminPanel() {
     }
   }
 
+  async function updatePhotographerVisibility(userId, visibility) {
+    try {
+      const res = await fetch(`/api/admin/photographers/${userId}/visibility`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Failed to update visibility');
+      setPhotographerFilters((f) => ({ ...f }));
+    } catch (e) {
+      setError(e.message || 'Failed to update visibility');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -423,10 +438,10 @@ export default function AdminPanel() {
                             }}
                           />
                           <Legend />
-                          <Line type="monotone" dataKey="photographers" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="customers" stroke="#10b981" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="subscriptions" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="shoots" stroke="#ef4444" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="photographers" name="Photographers" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="customers" name="Customers" stroke="#10b981" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="subscriptions" name="Subscriptions" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="shoots" name="Shoots Booked" stroke="#ef4444" strokeWidth={2} dot={false} />
                         </LineChart>
                       </ResponsiveContainer>
                     )}
@@ -581,11 +596,33 @@ export default function AdminPanel() {
                       { key: 'email', label: 'Email', render: (p) => <span className="text-muted-foreground">{p.email}</span> },
                       { key: 'plan', label: 'Plan', render: (p) => <span className="capitalize">{p.photographer_plan || 'free'}</span> },
                       {
+                        key: 'visibility',
+                        label: 'Visibility',
+                        render: (p) => {
+                          const visibility = String(p.visibility || 'private').toLowerCase();
+                          const isPublic = visibility === 'public';
+                          return (
+                            <span className={`rounded-full px-2 py-1 text-xs ${isPublic ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-500/20 text-zinc-300'}`}>
+                              {isPublic ? 'Public' : 'Private'}
+                            </span>
+                          );
+                        },
+                      },
+                      {
                         key: 'action',
                         label: 'Action',
                         render: (p) => (
                           <div className="flex flex-wrap gap-2">
                             <Button size="sm" variant="outline" onClick={() => openPhotographerDetails(p.id)}>View</Button>
+                            {String(p.visibility || 'private').toLowerCase() === 'public' ? (
+                              <Button size="sm" variant="outline" onClick={() => updatePhotographerVisibility(p.id, 'private')}>
+                                Make Private
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => updatePhotographerVisibility(p.id, 'public')}>
+                                Make Public
+                              </Button>
+                            )}
                             <ConfirmDialog
                               title="Delete photographer?"
                               description={`This will hide ${p.full_name} from active lists.`}

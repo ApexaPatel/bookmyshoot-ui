@@ -49,6 +49,38 @@ export default function PhotographerBookings() {
     return days >= 7 && row.status !== 'cancelled';
   };
 
+  const canMarkCompleted = (row) => {
+    if (!row || !row.id) return false;
+    const status = String(row.status || '').toLowerCase();
+    if (status === 'completed' || status === 'cancelled') return false;
+    if (!row.event_date) return false;
+    const startDate = new Date(row.event_date);
+    if (Number.isNaN(startDate.getTime())) return false;
+    const now = new Date();
+    return now >= startDate;
+  };
+
+  const completeBooking = async (bookingId) => {
+    if (!token) return;
+    if (!window.confirm('Mark this booking as completed?')) return;
+    setActionLoadingId(bookingId);
+    setError('');
+    try {
+      const res = await fetch('/api/booking/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Failed to mark booking as completed');
+      await load();
+    } catch (err) {
+      setError(err.message || 'Failed to mark booking as completed');
+    } finally {
+      setActionLoadingId('');
+    }
+  };
+
   const cancelBooking = async (bookingId) => {
     if (!token) return;
     if (!window.confirm('Cancel this booking?')) return;
@@ -113,7 +145,15 @@ export default function PhotographerBookings() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{row.status || '—'}</span>
                     </div>
                     <p className="mt-2 text-muted-foreground">₹{Number(row.final_price || 0).toLocaleString()}</p>
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!canMarkCompleted(row) || actionLoadingId === row.id}
+                        onClick={() => completeBooking(row.id)}
+                        title={!canMarkCompleted(row) ? 'You can mark completed only after event start date.' : ''}
+                      >
+                        Mark as Completed
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -123,6 +163,11 @@ export default function PhotographerBookings() {
                       >
                         Cancel Booking
                       </Button>
+                    </div>
+                    {!canMarkCompleted(row) ? (
+                      <p className="mt-1 text-xs text-muted-foreground">Can be marked completed only after start date.</p>
+                    ) : null}
+                    <div>
                       {!canPhotographerCancel(row) ? (
                         <p className="mt-1 text-xs text-muted-foreground">Only admin can cancel within 7 days.</p>
                       ) : null}

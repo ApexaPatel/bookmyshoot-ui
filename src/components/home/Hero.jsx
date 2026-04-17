@@ -1,8 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Search, Star, Users, Camera } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative py-20 md:py-28 bg-gradient-to-b from-zinc-900 to-zinc-950 overflow-hidden">
       <div className="container mx-auto px-6 md:px-10">
@@ -20,10 +23,19 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-lg h-14 px-8 rounded-xl" size="lg">
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-lg h-14 px-8 rounded-xl"
+                size="lg"
+                onClick={() => navigate('/photographers')}
+              >
                 Find Photographers
               </Button>
-              <Button variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800 text-lg h-14 px-8 rounded-xl" size="lg">
+              <Button
+                variant="outline"
+                className="border-zinc-700 text-white hover:bg-zinc-800 text-lg h-14 px-8 rounded-xl"
+                size="lg"
+                onClick={() => navigate('/signup?role=photographer')}
+              >
                 Join as Photographer
               </Button>
             </div>

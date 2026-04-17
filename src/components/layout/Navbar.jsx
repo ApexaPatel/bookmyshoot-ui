@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, User, X } from 'lucide-react';
+import { Menu, Search, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ const Navbar = () => {
   const isAdminRole = ['super_admin', 'admin', 'staff'].includes(user?.role);
   const isPhotographer = user?.role === 'photographer';
   const [eventPanelOpen, setEventPanelOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
 
   const hrefForEventType = (typeId) => {
@@ -57,6 +58,15 @@ const Navbar = () => {
     return () => document.removeEventListener('keydown', onEsc);
   }, [eventPanelOpen]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onEsc = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', onEsc);
+    return () => document.removeEventListener('keydown', onEsc);
+  }, [mobileMenuOpen]);
+
   const handleLogout = () => {
     logout();
   };
@@ -71,7 +81,7 @@ const Navbar = () => {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-8 min-w-0">
+        <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8 min-w-0">
           <button
             type="button"
             onClick={() => setEventPanelOpen(true)}
@@ -114,13 +124,13 @@ const Navbar = () => {
         <div className="flex items-center gap-2 shrink-0">
           {!isAuthenticated ? (
             <>
-              <Button variant="ghost" className="text-white hover:bg-zinc-800 hidden sm:inline-flex" asChild>
+              <Button variant="ghost" className="text-white hover:bg-zinc-800 hidden lg:inline-flex" asChild>
                 <Link to="/login">Login</Link>
               </Button>
-              <Button variant="ghost" className="text-white hover:bg-zinc-800 hidden sm:inline-flex" asChild>
+              <Button variant="ghost" className="text-white hover:bg-zinc-800 hidden lg:inline-flex" asChild>
                 <Link to="/signup">Sign up</Link>
               </Button>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white hidden sm:inline-flex lg:inline-flex" asChild>
                 <Link to="/photographers">Find Photographer</Link>
               </Button>
             </>
@@ -220,9 +230,90 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 lg:hidden"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
       </div>
     </header>
+    {mobileMenuOpen ? (
+      <div className="fixed inset-0 top-16 z-40 lg:hidden">
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-label="Close menu overlay"
+        />
+        <section className="relative z-10 mx-3 mt-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold tracking-wide text-zinc-200">Menu</p>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-md border border-zinc-700 p-2 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+              aria-label="Close navigation menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <nav className="grid gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setEventPanelOpen(true);
+              }}
+              className="rounded-xl px-3 py-3 text-left text-sm font-medium text-zinc-200 hover:bg-zinc-800"
+            >
+              Event
+            </button>
+            <Link to="/photographers" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+              Photographers
+            </Link>
+            <Link to="/organizations" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+              Organizations
+            </Link>
+            {!isPhotographer ? (
+              <Link to="/quote" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+                Get Quote
+              </Link>
+            ) : (
+              <>
+                <Link to="/photographer/quotations" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+                  Quote requests
+                </Link>
+                <Link to="/photographer/bookings" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+                  Bookings
+                </Link>
+              </>
+            )}
+            <Link to="/auction" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800">
+              Auctions
+            </Link>
+          </nav>
+
+          {!isAuthenticated ? (
+            <div className="mt-4 grid gap-2 border-t border-zinc-800 pt-4">
+              <Button variant="outline" className="w-full border-zinc-700 text-zinc-100 hover:bg-zinc-800" asChild>
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>Login</Link>
+              </Button>
+              <Button variant="outline" className="w-full border-zinc-700 text-zinc-100 hover:bg-zinc-800" asChild>
+                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>Sign up</Link>
+              </Button>
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
+                <Link to="/photographers" onClick={() => setMobileMenuOpen(false)}>Find Photographer</Link>
+              </Button>
+            </div>
+          ) : null}
+        </section>
+      </div>
+    ) : null}
     {eventPanelOpen ? (
       <div className="fixed inset-0 top-16 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto md:max-h-none md:overflow-visible">
         <button type="button" className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setEventPanelOpen(false)} />

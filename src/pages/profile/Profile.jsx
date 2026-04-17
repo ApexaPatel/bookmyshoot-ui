@@ -16,13 +16,16 @@ const DEFAULT_AVATAR_PLACEHOLDER = null;
  * User profile page – PROTECTED. Redirects to /login if not authenticated.
  */
 const Profile = () => {
-  const { user, logout, updateProfileImage, updateCoverImage, updateBio } = useAuth();
+  const { user, logout, updateProfileImage, updateCoverImage, updateBio, updateVisibility } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [bioSaving, setBioSaving] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [coverError, setCoverError] = useState('');
   const [bioError, setBioError] = useState('');
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityMessage, setVisibilityMessage] = useState('');
+  const [visibilityError, setVisibilityError] = useState('');
   const [coverUrlInput, setCoverUrlInput] = useState('');
   const [bio, setBio] = useState(user?.bio || '');
   const fileInputRef = useRef(null);
@@ -105,6 +108,24 @@ const Profile = () => {
       setBioError(err?.message || 'Failed to save bio');
     } finally {
       setBioSaving(false);
+    }
+  };
+
+  const handleVisibilityChange = async (nextVisibility) => {
+    setVisibilityMessage('');
+    setVisibilityError('');
+    setVisibilitySaving(true);
+    try {
+      await updateVisibility(nextVisibility);
+      if (nextVisibility === 'public') {
+        setVisibilityMessage('Your profile is now visible to customers.');
+      } else {
+        setVisibilityMessage('Your profile is hidden from explore page.');
+      }
+    } catch (err) {
+      setVisibilityError(err?.message || 'Failed to update visibility');
+    } finally {
+      setVisibilitySaving(false);
     }
   };
 
@@ -212,6 +233,40 @@ const Profile = () => {
                       {bioSaving ? 'Saving...' : 'Save Bio'}
                     </Button>
                   </div>
+                </ProfileInfoCard>
+              ) : null}
+
+              {isPhotographer ? (
+                <ProfileInfoCard
+                  title="Profile Visibility"
+                  description="Control whether customers can discover your profile in explore results."
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant={user?.visibility === 'private' ? 'default' : 'outline'}
+                      className={user?.visibility === 'private' ? 'bg-zinc-700 text-white hover:bg-zinc-600' : 'border-zinc-700 text-zinc-200 hover:bg-zinc-800'}
+                      disabled={visibilitySaving}
+                      onClick={() => handleVisibilityChange('private')}
+                    >
+                      Private
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={user?.visibility === 'public' ? 'default' : 'outline'}
+                      className={user?.visibility === 'public' ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'border-zinc-700 text-zinc-200 hover:bg-zinc-800'}
+                      disabled={visibilitySaving}
+                      onClick={() => handleVisibilityChange('public')}
+                    >
+                      Public
+                    </Button>
+                    {visibilitySaving ? <span className="text-xs text-zinc-400">Updating...</span> : null}
+                  </div>
+                  <p className="text-sm text-zinc-400">
+                    When set to private, your profile will not appear in explore/search results.
+                  </p>
+                  {visibilityMessage ? <p className="text-sm text-emerald-400">{visibilityMessage}</p> : null}
+                  {visibilityError ? <p className="text-sm text-red-400">{visibilityError}</p> : null}
                 </ProfileInfoCard>
               ) : null}
 

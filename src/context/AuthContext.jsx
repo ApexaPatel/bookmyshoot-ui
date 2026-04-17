@@ -15,6 +15,7 @@ function normalizeUser(apiUser) {
     avatar: apiUser.profile_picture ?? null,
     cover: apiUser.cover_image ?? null,
     role: apiUser.role ?? 'customer',
+    visibility: apiUser.visibility ?? (apiUser.role === 'photographer' ? 'private' : 'public'),
     isMember: Boolean(apiUser.is_member),
     membershipStart: apiUser.membership_start ?? null,
     membershipExpiry: apiUser.membership_expiry ?? null,
@@ -145,6 +146,29 @@ export const AuthProvider = ({ children }) => {
     updateUser({ bio: data.bio ?? bio });
   };
 
+  const updateVisibility = async (visibility) => {
+    if (!token) throw new Error('Not authenticated');
+    const normalized = String(visibility || '').toLowerCase();
+    if (!['private', 'public'].includes(normalized)) {
+      throw new Error('Invalid visibility');
+    }
+    const res = await fetch('/api/photographers/me/visibility', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ visibility: normalized }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail ?? 'Failed to update visibility';
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg ?? detail : String(detail);
+      throw new Error(msg);
+    }
+    updateUser({ visibility: data.visibility ?? normalized });
+  };
+
   const value = {
     user,
     token,
@@ -156,6 +180,7 @@ export const AuthProvider = ({ children }) => {
     updateProfileImage,
     updateCoverImage,
     updateBio,
+    updateVisibility,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
