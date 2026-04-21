@@ -70,7 +70,12 @@ export const AuthProvider = ({ children }) => {
     }
 
     const data = await response.json();
-    authLogin(normalizeUser(data.user), data.access_token);
+    const normalizedUser = normalizeUser(data.user);
+    authLogin(normalizedUser, data.access_token);
+    if (['super_admin', 'admin', 'staff'].includes(normalizedUser?.role)) {
+      navigate('/admin');
+      return;
+    }
     navigate('/photographers');
   };
 

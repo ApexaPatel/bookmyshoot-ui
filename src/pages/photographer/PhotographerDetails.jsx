@@ -294,7 +294,7 @@ export default function PhotographerDetails() {
                           <textarea
                             value={reviewForm.comment}
                             onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
-                            className="min-h-[90px] border-zinc-700 bg-zinc-900 text-zinc-100"
+                            className="w-full min-h-[90px] rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100"
                             placeholder="Share your experience..."
                           />
                         </div>
